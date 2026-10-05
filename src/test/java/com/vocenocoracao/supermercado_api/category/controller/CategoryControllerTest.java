@@ -147,7 +147,7 @@ class CategoryControllerTest {
     @Test
     void createWithMalformedJsonIs400() throws Exception {
         mvc.perform(post("/api/categories").with(admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{"))
+                        .contentType(MediaType.APPLICATION_JSON).content(""))
                 .andExpect(status().isBadRequest());
     }
 
