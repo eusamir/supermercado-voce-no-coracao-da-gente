@@ -20,5 +20,5 @@ public class Category extends BaseEntity {
     private String name;
 
     @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
+    private boolean active;
 }
