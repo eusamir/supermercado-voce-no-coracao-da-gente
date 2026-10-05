@@ -41,7 +41,7 @@ public class Product extends BaseEntity {
     private int stock;
 
     @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
+    private boolean active;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
