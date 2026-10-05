@@ -6,6 +6,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -35,6 +36,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidRequestException.class)
     public ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Requisição inválida", ex.getMessage());
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ProblemDetail handleOptimisticLocking(ObjectOptimisticLockingFailureException exception) {
+        return problem(HttpStatus.CONFLICT, "Conflito", "O recurso foi alterado por outra requisição. Tente novamente.");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
