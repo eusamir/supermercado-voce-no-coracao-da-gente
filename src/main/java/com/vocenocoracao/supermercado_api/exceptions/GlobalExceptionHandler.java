@@ -38,6 +38,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Requisição inválida", ex.getMessage());
     }
 
+    @ExceptionHandler(KeycloakIntegrationException.class)
+    public ProblemDetail handleKeycloakIntegration(KeycloakIntegrationException exception) {
+        return problem(HttpStatus.BAD_GATEWAY, "Serviço de autenticação indisponível", exception.getMessage());
+    }
+
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ProblemDetail handleOptimisticLocking(ObjectOptimisticLockingFailureException exception) {
         return problem(HttpStatus.CONFLICT, "Conflito", "O recurso foi alterado por outra requisição. Tente novamente.");
