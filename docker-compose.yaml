@@ -4,46 +4,99 @@ services:
     container_name: supermercado-keycloak
     command: start-dev --http-port=7080 --import-realm
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_HEALTH_ENABLED: "true"
       KC_LOG_LEVEL: info
-      KEYCLOAK_BACKEND_CLIENT_SECRET: ${KEYCLOAK_BACKEND_CLIENT_SECRET}
+      KEYCLOAK_BACKEND_CLIENT_SECRET: ${KEYCLOAK_BACKEND_CLIENT_SECRET:-supermercado-backend-secret}
     ports:
       - "7080:7080"
     volumes:
       - ./keycloak/realm:/opt/keycloak/data/import:ro
     healthcheck:
-      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: 
-    localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'" ]
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'" ]
       interval: 15s
       timeout: 5s
       retries: 15
       start_period: 30s
     networks:
       - local_network
+
   postgres:
     image: postgres:16-alpine
     container_name: supermercado-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-supermercado}
+      POSTGRES_USER: ${POSTGRES_USER:-supermercado}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supermercado}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - local_network
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: supermercado-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-supermercado}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-supermercado}
     ports:
       - "5673:5672"
       - "15673:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    networks:
+      - local_network
+
+  api:
+    build: .
+    container_name: supermercado-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-supermercado}
+      POSTGRES_USER: ${POSTGRES_USER:-supermercado}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supermercado}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:-supermercado}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-supermercado}
+      KEYCLOAK_BASE_URL: http://keycloak:7080
+      KEYCLOAK_ISSUER_URI: http://localhost:7080/realms/supermercado
+      KEYCLOAK_JWK_SET_URI: http://keycloak:7080/realms/supermercado/protocol/openid-connect/certs
+      KEYCLOAK_BACKEND_CLIENT_SECRET: ${KEYCLOAK_BACKEND_CLIENT_SECRET:-supermercado-backend-secret}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks:
+      - local_network
+
 networks:
   local_network:
     driver: bridge
+
 volumes:
   postgres_data:
