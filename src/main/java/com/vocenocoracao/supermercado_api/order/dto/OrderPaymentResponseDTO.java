@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 
 public record OrderPaymentResponseDTO(
         PaymentStatus status,
-        BigDecimal amount
+        BigDecimal amount,
+        String failureReason
 ) {
 }

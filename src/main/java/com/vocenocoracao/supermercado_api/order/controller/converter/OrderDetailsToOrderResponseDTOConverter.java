@@ -25,7 +25,11 @@ public class OrderDetailsToOrderResponseDTOConverter implements Converter<OrderD
                 details.order().getTotal(),
                 details.order().getCreatedAt(),
                 items,
-                new OrderPaymentResponseDTO(details.payment().getStatus(), details.payment().getAmount())
+                new OrderPaymentResponseDTO(
+                        details.payment().getStatus(),
+                        details.payment().getAmount(),
+                        details.payment().getFailureReason()
+                )
         );
     }
 
