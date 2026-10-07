@@ -15,12 +15,14 @@ import com.vocenocoracao.supermercado_api.orderItem.entity.OrderItem;
 import com.vocenocoracao.supermercado_api.orderItem.repository.OrderItemRepository;
 import com.vocenocoracao.supermercado_api.payment.entity.Payment;
 import com.vocenocoracao.supermercado_api.payment.entity.PaymentStatus;
+import com.vocenocoracao.supermercado_api.payment.event.PaymentRequestedEvent;
 import com.vocenocoracao.supermercado_api.payment.repository.PaymentRepository;
 import com.vocenocoracao.supermercado_api.product.entity.Product;
 import com.vocenocoracao.supermercado_api.user.entity.User;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,19 +36,22 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final PaymentRepository paymentRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public OrderServiceImpl(
             CartRepository cartRepository,
             CartItemRepository cartItemRepository,
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
-            PaymentRepository paymentRepository
+            PaymentRepository paymentRepository,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.paymentRepository = paymentRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -79,6 +84,8 @@ public class OrderServiceImpl implements OrderService {
 
         cartItemRepository.deleteAll(cartItems);
         cartItemRepository.flush();
+
+        eventPublisher.publishEvent(new PaymentRequestedEvent(payment.getId(), order.getId()));
 
         return new OrderDetails(order, orderItems, payment);
     }

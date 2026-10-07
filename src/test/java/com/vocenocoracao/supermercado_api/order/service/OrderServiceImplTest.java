@@ -22,6 +22,7 @@ import com.vocenocoracao.supermercado_api.orderItem.entity.OrderItem;
 import com.vocenocoracao.supermercado_api.orderItem.repository.OrderItemRepository;
 import com.vocenocoracao.supermercado_api.payment.entity.Payment;
 import com.vocenocoracao.supermercado_api.payment.entity.PaymentStatus;
+import com.vocenocoracao.supermercado_api.payment.event.PaymentRequestedEvent;
 import com.vocenocoracao.supermercado_api.payment.repository.PaymentRepository;
 import com.vocenocoracao.supermercado_api.product.entity.Product;
 import com.vocenocoracao.supermercado_api.user.entity.User;
@@ -36,6 +37,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
@@ -54,6 +56,9 @@ class OrderServiceImplTest {
 
     @Mock
     private PaymentRepository paymentRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private OrderServiceImpl service;
@@ -221,6 +226,38 @@ class OrderServiceImplTest {
         when(cartItemRepository.findAllByCartId(cart.getId())).thenReturn(List.of(item(banana, 1)));
 
         assertThatThrownBy(() -> service.checkout(user)).isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void checkoutPublishesThePaymentRequestedEventForThePersistedPayment() {
+        Product banana = product("Banana prata (kg)", "6.99", 10);
+        when(cartRepository.findByUserIdForUpdate(user.getId())).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findAllByCartId(cart.getId())).thenReturn(List.of(item(banana, 1)));
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order saved = invocation.getArgument(0);
+            saved.setId(orderId);
+            return saved;
+        });
+        when(orderItemRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+            Payment saved = invocation.getArgument(0);
+            saved.setId(paymentId);
+            return saved;
+        });
+
+        service.checkout(user);
+
+        verify(eventPublisher).publishEvent(new PaymentRequestedEvent(paymentId, orderId));
+    }
+
+    @Test
+    void checkoutDoesNotPublishAnythingWhenItFails() {
+        when(cartRepository.findByUserIdForUpdate(user.getId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.checkout(user)).isInstanceOf(InvalidRequestException.class);
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test
