@@ -15,6 +15,6 @@ public interface CartRepository extends JpaRepository<Cart, UUID> {
     Optional<Cart> findByUserId(UUID userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select c from Cart c where c.user.id = :userId")
+    @Query("select cart from Cart cart where cart.user.id = :userId")
     Optional<Cart> findByUserIdForUpdate(@Param("userId") UUID userId);
 }

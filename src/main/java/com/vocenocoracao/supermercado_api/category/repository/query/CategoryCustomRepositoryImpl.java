@@ -54,18 +54,18 @@ public class CategoryCustomRepositoryImpl implements CategoryCustomRepository {
     @Override
     public long count(CategoryFilterDTO filter) {
 
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Long> query =
-                cb.createQuery(Long.class);
+                criteriaBuilder.createQuery(Long.class);
 
         Root<Category> category =
                 query.from(Category.class);
 
         List<Predicate> predicates =
-                buildPredicates(filter, cb, category);
+                buildPredicates(filter, criteriaBuilder, category);
 
-        query.select(cb.count(category));
+        query.select(criteriaBuilder.count(category));
 
         query.where(predicates.toArray(new Predicate[0]));
 

@@ -24,13 +24,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(NotFoundException.class)
-    public ProblemDetail handleNotFound(NotFoundException ex) {
-        return problem(HttpStatus.NOT_FOUND, "Recurso não encontrado", ex.getMessage());
+    public ProblemDetail handleNotFound(NotFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, "Recurso não encontrado", exception.getMessage());
     }
 
     @ExceptionHandler(AlreadyExistsException.class)
-    public ProblemDetail handleAlreadyExists(AlreadyExistsException ex) {
-        return problem(HttpStatus.CONFLICT, "Conflito", ex.getMessage());
+    public ProblemDetail handleAlreadyExists(AlreadyExistsException exception) {
+        return problem(HttpStatus.CONFLICT, "Conflito", exception.getMessage());
     }
 
     @ExceptionHandler(InsufficientStockException.class)
@@ -39,8 +39,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(InvalidRequestException.class)
-    public ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
-        return problem(HttpStatus.BAD_REQUEST, "Requisição inválida", ex.getMessage());
+    public ProblemDetail handleInvalidRequest(InvalidRequestException exception) {
+        return problem(HttpStatus.BAD_REQUEST, "Requisição inválida", exception.getMessage());
     }
 
     @ExceptionHandler(KeycloakIntegrationException.class)
@@ -54,26 +54,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Violação de integridade", ex);
+    public ProblemDetail handleDataIntegrity(DataIntegrityViolationException exception) {
+        log.warn("Violação de integridade", exception);
         return problem(HttpStatus.CONFLICT, "Conflito", "A operação viola uma restrição de integridade dos dados.");
     }
 
     @ExceptionHandler(Exception.class)
-    public ProblemDetail handleUnexpected(Exception ex) {
-        log.error("Erro inesperado", ex);
+    public ProblemDetail handleUnexpected(Exception exception) {
+        log.error("Erro inesperado", exception);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno", "Ocorreu um erro inesperado.");
     }
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException ex,
+            MethodArgumentNotValidException exception,
             HttpHeaders headers,
             HttpStatusCode status,
             WebRequest request
     ) {
         Map<String, String> errors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors()
+        exception.getBindingResult().getFieldErrors()
                 .forEach(error -> errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
 
         ProblemDetail body = problem(HttpStatus.BAD_REQUEST, "Requisição inválida", "Um ou mais campos são inválidos.");
@@ -83,7 +83,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(
-            Exception ex,
+            Exception exception,
             Object body,
             HttpHeaders headers,
             HttpStatusCode statusCode,
@@ -92,7 +92,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (body == null) {
             body = problem(HttpStatus.valueOf(statusCode.value()), "Requisição inválida", "Requisição inválida.");
         }
-        return super.handleExceptionInternal(ex, body, headers, statusCode, request);
+        return super.handleExceptionInternal(exception, body, headers, statusCode, request);
     }
 
     private ProblemDetail problem(HttpStatus status, String title, String detail) {

@@ -11,7 +11,7 @@ public class CategoryRequestDTOToCategoryConverter implements Converter<Category
 
     @Override
     public Category convert(MappingContext<CategoryRequestDTO, Category> context) {
-        CategoryRequestDTO dto = context.getSource();
+        CategoryRequestDTO categoryRequestDTO = context.getSource();
         Category category = context.getDestination();
 
         if (category == null) {
@@ -19,7 +19,7 @@ public class CategoryRequestDTOToCategoryConverter implements Converter<Category
             category.setActive(true);
         }
 
-        category.setName(dto.name().trim());
+        category.setName(categoryRequestDTO.name().trim());
         return category;
     }
 }

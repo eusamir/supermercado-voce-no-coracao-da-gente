@@ -13,19 +13,19 @@ import org.springframework.stereotype.Repository;
 public interface CartItemRepository extends JpaRepository<CartItem, UUID> {
 
     @Query("""
-            select i from CartItem i
-            join fetch i.product p
-            join fetch p.category
-            where i.cart.id = :cartId
-            order by i.createdAt, i.id
+            select cartItem from CartItem cartItem
+            join fetch cartItem.product product
+            join fetch product.category
+            where cartItem.cart.id = :cartId
+            order by cartItem.createdAt, cartItem.id
             """)
     List<CartItem> findAllByCartId(@Param("cartId") UUID cartId);
 
     @Query("""
-            select i from CartItem i
-            join fetch i.product p
-            join fetch p.category
-            where i.cart.id = :cartId and p.id = :productId
+            select cartItem from CartItem cartItem
+            join fetch cartItem.product product
+            join fetch product.category
+            where cartItem.cart.id = :cartId and product.id = :productId
             """)
     Optional<CartItem> findByCartIdAndProductId(@Param("cartId") UUID cartId, @Param("productId") UUID productId);
 }

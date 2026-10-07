@@ -11,7 +11,7 @@ public class ProductRequestDTOToProductConverter implements Converter<ProductReq
 
     @Override
     public Product convert(MappingContext<ProductRequestDTO, Product> context) {
-        ProductRequestDTO dto = context.getSource();
+        ProductRequestDTO productRequestDTO = context.getSource();
         Product product = context.getDestination();
 
         if (product == null) {
@@ -19,10 +19,10 @@ public class ProductRequestDTOToProductConverter implements Converter<ProductReq
             product.setActive(true);
         }
 
-        product.setName(dto.name().trim());
-        product.setDescription(dto.description());
-        product.setPrice(dto.price());
-        product.setStock(dto.stock());
+        product.setName(productRequestDTO.name().trim());
+        product.setDescription(productRequestDTO.description());
+        product.setPrice(productRequestDTO.price());
+        product.setStock(productRequestDTO.stock());
         return product;
     }
 }

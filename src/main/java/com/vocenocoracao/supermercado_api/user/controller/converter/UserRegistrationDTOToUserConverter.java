@@ -11,11 +11,11 @@ public class UserRegistrationDTOToUserConverter implements Converter<UserRegistr
 
     @Override
     public User convert(MappingContext<UserRegistrationDTO, User> context) {
-        UserRegistrationDTO dto = context.getSource();
+        UserRegistrationDTO userRegistrationDTO = context.getSource();
 
         User user = new User();
-        user.setName(dto.name().trim().replaceAll("\\s+", " "));
-        user.setEmail(dto.email().trim().toLowerCase());
+        user.setName(userRegistrationDTO.name().trim().replaceAll("\\s+", " "));
+        user.setEmail(userRegistrationDTO.email().trim().toLowerCase());
         return user;
     }
 }

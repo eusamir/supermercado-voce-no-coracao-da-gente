@@ -106,7 +106,7 @@ public class CategoryServiceImpl implements CategoryService {
     private Category saveAndFlush(Category category) {
         try {
             return categoryRepository.saveAndFlush(category);
-        } catch (DataIntegrityViolationException ex) {
+        } catch (DataIntegrityViolationException exception) {
             throw new AlreadyExistsException(ALREADY_EXISTS);
         }
     }
