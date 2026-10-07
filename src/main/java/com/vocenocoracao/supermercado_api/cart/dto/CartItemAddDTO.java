@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public record CartItemAddDTO(
-        @Schema(description = "Product id")
+        @Schema(description = "Product id", example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
         @NotNull(message = "O produto é obrigatório.")
         UUID productId,
 

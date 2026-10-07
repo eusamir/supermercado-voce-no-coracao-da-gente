@@ -31,7 +31,7 @@ public record ProductRequestDTO(
         @Min(value = 0, message = "O estoque não pode ser negativo.")
         Integer stock,
 
-        @Schema(description = "Category id")
+        @Schema(description = "Category id", example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
         @NotNull(message = "A categoria é obrigatória.")
         UUID categoryId
 ) {
