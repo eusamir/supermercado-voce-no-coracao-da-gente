@@ -47,7 +47,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class OrderControllerTest {
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc;
 
     @MockitoBean
     private OrderService orderService;
@@ -100,14 +100,14 @@ class OrderControllerTest {
 
     @Test
     void checkoutWithoutTokenIs401() throws Exception {
-        mvc.perform(post("/api/orders/checkout")).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/orders/checkout")).andExpect(status().isUnauthorized());
     }
 
     @Test
     void checkoutReturns201WithTheOrderItemsAndThePendingPayment() throws Exception {
         when(orderService.checkout(user)).thenReturn(details());
 
-        mvc.perform(post("/api/orders/checkout").with(customer()))
+        mockMvc.perform(post("/api/orders/checkout").with(customer()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
                 .andExpect(jsonPath("$.total").value(49.87))
@@ -124,7 +124,7 @@ class OrderControllerTest {
     void checkoutOfAnEmptyCartIs400() throws Exception {
         when(orderService.checkout(user)).thenThrow(new InvalidRequestException("O carrinho está vazio."));
 
-        mvc.perform(post("/api/orders/checkout").with(customer()))
+        mockMvc.perform(post("/api/orders/checkout").with(customer()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("O carrinho está vazio."));
     }
@@ -134,7 +134,7 @@ class OrderControllerTest {
         when(orderService.checkout(user))
                 .thenThrow(new InsufficientStockException("Estoque insuficiente para: Banana prata (kg) (disponível: 2)."));
 
-        mvc.perform(post("/api/orders/checkout").with(customer()))
+        mockMvc.perform(post("/api/orders/checkout").with(customer()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Estoque insuficiente"));
     }

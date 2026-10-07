@@ -51,7 +51,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class CartControllerTest {
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc;
 
     @MockitoBean
     private CartService cartService;
@@ -113,19 +113,19 @@ class CartControllerTest {
         UUID productId = UUID.randomUUID();
         String body = "{\"productId\":\"" + productId + "\",\"quantity\":1}";
 
-        mvc.perform(get("/api/cart")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/cart/items").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(get("/api/cart")).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/cart/items").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isUnauthorized());
-        mvc.perform(put("/api/cart/items/{id}", productId).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(put("/api/cart/items/{id}", productId).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"quantity\":1}")).andExpect(status().isUnauthorized());
-        mvc.perform(delete("/api/cart/items/{id}", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/cart/items/{id}", productId)).andExpect(status().isUnauthorized());
     }
 
     @Test
     void emptyCartHasNoIdAndATotalOfZero() throws Exception {
         when(cartService.getCart(user)).thenReturn(new CartDetails(null, List.of()));
 
-        mvc.perform(get("/api/cart").with(customer()))
+        mockMvc.perform(get("/api/cart").with(customer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.items.length()").value(0))
@@ -137,7 +137,7 @@ class CartControllerTest {
     void cartShowsSubtotalsAndTheTotal() throws Exception {
         when(cartService.getCart(user)).thenReturn(cartWith(item(banana, 3), item(arroz, 1)));
 
-        mvc.perform(get("/api/cart").with(customer()))
+        mockMvc.perform(get("/api/cart").with(customer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].name").value("Banana prata (kg)"))
                 .andExpect(jsonPath("$.items[0].unitPrice").value(6.99))
@@ -152,7 +152,7 @@ class CartControllerTest {
     void cartFlagsAnItemThatIsNoLongerAvailable() throws Exception {
         when(cartService.getCart(user)).thenReturn(cartWith(item(banana, 3), item(arroz, 2)));
 
-        mvc.perform(get("/api/cart").with(customer()))
+        mockMvc.perform(get("/api/cart").with(customer()))
                 .andExpect(jsonPath("$.items[0].available").value(true))
                 .andExpect(jsonPath("$.items[1].available").value(false))
                 .andExpect(jsonPath("$.items[1].stock").value(1));
@@ -163,7 +163,7 @@ class CartControllerTest {
         banana.setActive(false);
         when(cartService.getCart(user)).thenReturn(cartWith(item(banana, 1)));
 
-        mvc.perform(get("/api/cart").with(customer()))
+        mockMvc.perform(get("/api/cart").with(customer()))
                 .andExpect(jsonPath("$.items[0].available").value(false));
     }
 
@@ -171,7 +171,7 @@ class CartControllerTest {
     void addItemReturnsTheUpdatedCart() throws Exception {
         when(cartService.addItem(user, banana.getId(), 2)).thenReturn(cartWith(item(banana, 2)));
 
-        mvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"productId\":\"" + banana.getId() + "\",\"quantity\":2}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].quantity").value(2));
@@ -179,7 +179,7 @@ class CartControllerTest {
 
     @Test
     void addItemWithInvalidFieldsIs400WithFieldErrors() throws Exception {
-        mvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quantity\":0}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.productId").value("O produto é obrigatório."))
@@ -189,7 +189,7 @@ class CartControllerTest {
 
     @Test
     void addItemAboveTheMaximumQuantityIs400() throws Exception {
-        mvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"productId\":\"" + banana.getId() + "\",\"quantity\":1000}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.quantity").value("A quantidade deve ser de no máximo 999."));
@@ -200,7 +200,7 @@ class CartControllerTest {
         when(cartService.addItem(any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenThrow(new InsufficientStockException("Estoque insuficiente. Disponível: 1."));
 
-        mvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"productId\":\"" + arroz.getId() + "\",\"quantity\":5}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Estoque insuficiente. Disponível: 1."));
@@ -211,7 +211,7 @@ class CartControllerTest {
         when(cartService.addItem(any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenThrow(new NotFoundException("Produto não encontrado."));
 
-        mvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"productId\":\"" + UUID.randomUUID() + "\",\"quantity\":1}"))
                 .andExpect(status().isNotFound());
     }
@@ -220,7 +220,7 @@ class CartControllerTest {
     void updateItemAllowsZeroToRemove() throws Exception {
         when(cartService.updateItem(user, banana.getId(), 0)).thenReturn(cartWith());
 
-        mvc.perform(put("/api/cart/items/{id}", banana.getId()).with(customer())
+        mockMvc.perform(put("/api/cart/items/{id}", banana.getId()).with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":0}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(0));
@@ -228,7 +228,7 @@ class CartControllerTest {
 
     @Test
     void updateItemWithNegativeQuantityIs400() throws Exception {
-        mvc.perform(put("/api/cart/items/{id}", banana.getId()).with(customer())
+        mockMvc.perform(put("/api/cart/items/{id}", banana.getId()).with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":-1}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.quantity").value("A quantidade não pode ser negativa."));
@@ -236,7 +236,7 @@ class CartControllerTest {
 
     @Test
     void updateItemWithInvalidProductIdIs400() throws Exception {
-        mvc.perform(put("/api/cart/items/{id}", "abc").with(customer())
+        mockMvc.perform(put("/api/cart/items/{id}", "abc").with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":1}"))
                 .andExpect(status().isBadRequest());
     }
@@ -246,7 +246,7 @@ class CartControllerTest {
         when(cartService.updateItem(any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenThrow(new NotFoundException("Item não encontrado no carrinho."));
 
-        mvc.perform(put("/api/cart/items/{id}", UUID.randomUUID()).with(customer())
+        mockMvc.perform(put("/api/cart/items/{id}", UUID.randomUUID()).with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":1}"))
                 .andExpect(status().isNotFound());
     }
@@ -255,7 +255,7 @@ class CartControllerTest {
     void removeItemReturnsTheCartWithoutIt() throws Exception {
         when(cartService.removeItem(user, banana.getId())).thenReturn(cartWith(item(arroz, 1)));
 
-        mvc.perform(delete("/api/cart/items/{id}", banana.getId()).with(customer()))
+        mockMvc.perform(delete("/api/cart/items/{id}", banana.getId()).with(customer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].name").value("Arroz branco 5kg"));
@@ -266,7 +266,7 @@ class CartControllerTest {
         when(cartService.removeItem(any(), eq(arroz.getId())))
                 .thenThrow(new NotFoundException("Item não encontrado no carrinho."));
 
-        mvc.perform(delete("/api/cart/items/{id}", arroz.getId()).with(customer()))
+        mockMvc.perform(delete("/api/cart/items/{id}", arroz.getId()).with(customer()))
                 .andExpect(status().isNotFound());
     }
 }

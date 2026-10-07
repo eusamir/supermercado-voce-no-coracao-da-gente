@@ -45,7 +45,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class CategoryControllerTest {
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc;
 
     @MockitoBean
     private CategoryService service;
@@ -71,7 +71,7 @@ class CategoryControllerTest {
 
     @Test
     void listingWithoutTokenIs401() throws Exception {
-        mvc.perform(get("/api/categories")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/categories")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -79,14 +79,14 @@ class CategoryControllerTest {
         when(service.findAllActive(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(category(UUID.randomUUID(), "Padaria", true))));
 
-        mvc.perform(get("/api/categories").with(customer()))
+        mockMvc.perform(get("/api/categories").with(customer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].name").value("Padaria"));
     }
 
     @Test
     void detailWithoutTokenIs401() throws Exception {
-        mvc.perform(get("/api/categories/{id}", UUID.randomUUID())).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/categories/{id}", UUID.randomUUID())).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -94,7 +94,7 @@ class CategoryControllerTest {
         UUID id = UUID.randomUUID();
         when(service.findActiveById(id)).thenReturn(category(id, "Padaria", true));
 
-        mvc.perform(get("/api/categories/{id}", id).with(customer())).andExpect(status().isOk());
+        mockMvc.perform(get("/api/categories/{id}", id).with(customer())).andExpect(status().isOk());
     }
 
     @Test
@@ -102,25 +102,25 @@ class CategoryControllerTest {
         UUID id = UUID.randomUUID();
         when(service.findActiveById(id)).thenThrow(new NotFoundException("Categoria não encontrada."));
 
-        mvc.perform(get("/api/categories/{id}", id).with(customer()))
+        mockMvc.perform(get("/api/categories/{id}", id).with(customer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("Categoria não encontrada."));
     }
 
     @Test
     void invalidUuidIs400() throws Exception {
-        mvc.perform(get("/api/categories/{id}", "abc").with(customer())).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/categories/{id}", "abc").with(customer())).andExpect(status().isBadRequest());
     }
 
     @Test
     void createWithoutTokenIs401() throws Exception {
-        mvc.perform(post("/api/categories").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Padaria\"}"))
+        mockMvc.perform(post("/api/categories").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Padaria\"}"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void createAsCustomerIs403() throws Exception {
-        mvc.perform(post("/api/categories").with(customer())
+        mockMvc.perform(post("/api/categories").with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Padaria\"}"))
                 .andExpect(status().isForbidden());
     }
@@ -129,7 +129,7 @@ class CategoryControllerTest {
     void createAsAdminIs201() throws Exception {
         when(service.create(any())).thenReturn(category(UUID.randomUUID(), "Padaria", true));
 
-        mvc.perform(post("/api/categories").with(admin())
+        mockMvc.perform(post("/api/categories").with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Padaria\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Padaria"))
@@ -138,7 +138,7 @@ class CategoryControllerTest {
 
     @Test
     void createWithBlankNameIs400WithFieldErrors() throws Exception {
-        mvc.perform(post("/api/categories").with(admin())
+        mockMvc.perform(post("/api/categories").with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"  \"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").value("O nome é obrigatório."));
@@ -146,7 +146,7 @@ class CategoryControllerTest {
 
     @Test
     void createWithMalformedJsonIs400() throws Exception {
-        mvc.perform(post("/api/categories").with(admin())
+        mockMvc.perform(post("/api/categories").with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content(""))
                 .andExpect(status().isBadRequest());
     }
@@ -155,7 +155,7 @@ class CategoryControllerTest {
     void createDuplicateIs409() throws Exception {
         when(service.create(any())).thenThrow(new AlreadyExistsException("Categoria já cadastrada."));
 
-        mvc.perform(post("/api/categories").with(admin())
+        mockMvc.perform(post("/api/categories").with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Padaria\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Categoria já cadastrada."));
@@ -167,7 +167,7 @@ class CategoryControllerTest {
         when(service.findById(id)).thenReturn(category(id, "Padaria", true));
         when(service.update(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        mvc.perform(put("/api/categories/{id}", id).with(admin())
+        mockMvc.perform(put("/api/categories/{id}", id).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Pães\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Pães"))
@@ -179,7 +179,7 @@ class CategoryControllerTest {
         UUID id = UUID.randomUUID();
         when(service.changeActive(eq(id), eq(false))).thenReturn(category(id, "Padaria", false));
 
-        mvc.perform(patch("/api/categories/{id}/active", id).with(admin())
+        mockMvc.perform(patch("/api/categories/{id}/active", id).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
@@ -187,14 +187,14 @@ class CategoryControllerTest {
 
     @Test
     void changeActiveWithoutBodyFieldIs400() throws Exception {
-        mvc.perform(patch("/api/categories/{id}/active", UUID.randomUUID()).with(admin())
+        mockMvc.perform(patch("/api/categories/{id}/active", UUID.randomUUID()).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void changeActiveAsCustomerIs403() throws Exception {
-        mvc.perform(patch("/api/categories/{id}/active", UUID.randomUUID()).with(customer())
+        mockMvc.perform(patch("/api/categories/{id}/active", UUID.randomUUID()).with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
                 .andExpect(status().isForbidden());
     }
@@ -203,9 +203,9 @@ class CategoryControllerTest {
     void adminListingRequiresAdmin() throws Exception {
         when(service.findAll(any(), any())).thenReturn(new PageImpl<>(List.of()));
 
-        mvc.perform(get("/api/admin/categories")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/admin/categories").with(customer())).andExpect(status().isForbidden());
-        mvc.perform(get("/api/admin/categories").with(admin())).andExpect(status().isOk());
+        mockMvc.perform(get("/api/admin/categories")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/categories").with(customer())).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/categories").with(admin())).andExpect(status().isOk());
     }
 
     @Test
@@ -213,8 +213,8 @@ class CategoryControllerTest {
         UUID id = UUID.randomUUID();
         when(service.findById(id)).thenReturn(category(id, "Padaria", false));
 
-        mvc.perform(get("/api/admin/categories/{id}", id).with(customer())).andExpect(status().isForbidden());
-        mvc.perform(get("/api/admin/categories/{id}", id).with(admin()))
+        mockMvc.perform(get("/api/admin/categories/{id}", id).with(customer())).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/categories/{id}", id).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
     }

@@ -50,7 +50,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class ProductControllerTest {
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc;
 
     @MockitoBean
     private ProductService service;
@@ -91,7 +91,7 @@ class ProductControllerTest {
         when(service.findAllActive(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(product(UUID.randomUUID()))));
 
-        mvc.perform(get("/api/products"))
+        mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].name").value("Leite integral 1L"))
                 .andExpect(jsonPath("$.content[0].price").value(5.29))
@@ -104,7 +104,7 @@ class ProductControllerTest {
         UUID categoryId = UUID.randomUUID();
         when(service.findAllActive(any(), any())).thenReturn(new PageImpl<>(List.of()));
 
-        mvc.perform(get("/api/products").param("search", "leite").param("categoryId", categoryId.toString()))
+        mockMvc.perform(get("/api/products").param("search", "leite").param("categoryId", categoryId.toString()))
                 .andExpect(status().isOk());
 
         verify(service).findAllActive(
@@ -116,8 +116,8 @@ class ProductControllerTest {
     void listingAppliesTheDefaultAndMaximumPageSize() throws Exception {
         when(service.findAllActive(any(), any())).thenReturn(new PageImpl<>(List.of()));
 
-        mvc.perform(get("/api/products")).andExpect(status().isOk());
-        mvc.perform(get("/api/products").param("size", "500")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/products")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/products").param("size", "500")).andExpect(status().isOk());
 
         verify(service).findAllActive(any(), argThat(pageable -> pageable.getPageSize() == 20));
         verify(service).findAllActive(any(), argThat(pageable -> pageable.getPageSize() == 100));
@@ -125,7 +125,7 @@ class ProductControllerTest {
 
     @Test
     void listingWithInvalidCategoryIdIs400() throws Exception {
-        mvc.perform(get("/api/products").param("categoryId", "abc")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/products").param("categoryId", "abc")).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -133,7 +133,7 @@ class ProductControllerTest {
         when(service.findAllActive(any(), any()))
                 .thenThrow(new InvalidRequestException("Ordenação inválida. Campos permitidos: name, price."));
 
-        mvc.perform(get("/api/products").param("sort", "stock"))
+        mockMvc.perform(get("/api/products").param("sort", "stock"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Ordenação inválida. Campos permitidos: name, price."));
     }
@@ -143,7 +143,7 @@ class ProductControllerTest {
         UUID id = UUID.randomUUID();
         when(service.findActiveById(id)).thenReturn(product(id));
 
-        mvc.perform(get("/api/products/{id}", id))
+        mockMvc.perform(get("/api/products/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()));
     }
@@ -153,25 +153,25 @@ class ProductControllerTest {
         UUID id = UUID.randomUUID();
         when(service.findActiveById(id)).thenThrow(new NotFoundException("Produto não encontrado."));
 
-        mvc.perform(get("/api/products/{id}", id))
+        mockMvc.perform(get("/api/products/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("Produto não encontrado."));
     }
 
     @Test
     void detailWithInvalidUuidIs400() throws Exception {
-        mvc.perform(get("/api/products/{id}", "abc")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/products/{id}", "abc")).andExpect(status().isBadRequest());
     }
 
     @Test
     void createWithoutTokenIs401() throws Exception {
-        mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void createAsCustomerIs403() throws Exception {
-        mvc.perform(post("/api/products").with(customer())
+        mockMvc.perform(post("/api/products").with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
                 .andExpect(status().isForbidden());
     }
@@ -181,7 +181,7 @@ class ProductControllerTest {
         UUID categoryId = UUID.randomUUID();
         when(service.create(any(), eq(categoryId))).thenReturn(product(UUID.randomUUID()));
 
-        mvc.perform(post("/api/products").with(admin())
+        mockMvc.perform(post("/api/products").with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content(validBody(categoryId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Leite integral 1L"))
@@ -192,7 +192,7 @@ class ProductControllerTest {
     void createWithInvalidFieldsIs400WithFieldErrors() throws Exception {
         String body = "{\"name\":\" \",\"price\":-1,\"stock\":-5}";
 
-        mvc.perform(post("/api/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").value("O nome é obrigatório."))
                 .andExpect(jsonPath("$.errors.price").value("O preço não pode ser negativo."))
@@ -204,7 +204,7 @@ class ProductControllerTest {
     void createWithMoreThanTwoDecimalPlacesIs400() throws Exception {
         String body = "{\"name\":\"Leite\",\"price\":5.299,\"stock\":1,\"categoryId\":\"" + UUID.randomUUID() + "\"}";
 
-        mvc.perform(post("/api/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.price").value("O preço deve ter no máximo 2 casas decimais."));
     }
@@ -213,7 +213,7 @@ class ProductControllerTest {
     void createWithUnknownCategoryIs404() throws Exception {
         when(service.create(any(), any())).thenThrow(new NotFoundException("Categoria não encontrada."));
 
-        mvc.perform(post("/api/products").with(admin())
+        mockMvc.perform(post("/api/products").with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
                 .andExpect(status().isNotFound());
     }
@@ -223,7 +223,7 @@ class ProductControllerTest {
         when(service.create(any(), any()))
                 .thenThrow(new InvalidRequestException("Não é possível usar uma categoria inativa."));
 
-        mvc.perform(post("/api/products").with(admin())
+        mockMvc.perform(post("/api/products").with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
                 .andExpect(status().isBadRequest());
     }
@@ -237,7 +237,7 @@ class ProductControllerTest {
 
         String body = "{\"name\":\"Leite desnatado 1L\",\"price\":6.10,\"stock\":7,\"categoryId\":\"" + categoryId + "\"}";
 
-        mvc.perform(put("/api/products/{id}", id).with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(put("/api/products/{id}", id).with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Leite desnatado 1L"))
                 .andExpect(jsonPath("$.price").value(6.10))
@@ -246,7 +246,7 @@ class ProductControllerTest {
 
     @Test
     void updateAsCustomerIs403() throws Exception {
-        mvc.perform(put("/api/products/{id}", UUID.randomUUID()).with(customer())
+        mockMvc.perform(put("/api/products/{id}", UUID.randomUUID()).with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
                 .andExpect(status().isForbidden());
     }
@@ -256,7 +256,7 @@ class ProductControllerTest {
         UUID id = UUID.randomUUID();
         when(service.findById(id)).thenThrow(new NotFoundException("Produto não encontrado."));
 
-        mvc.perform(put("/api/products/{id}", id).with(admin())
+        mockMvc.perform(put("/api/products/{id}", id).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
                 .andExpect(status().isNotFound());
     }
@@ -267,7 +267,7 @@ class ProductControllerTest {
         when(service.findById(id)).thenReturn(product(id));
         when(service.update(any(), any())).thenThrow(new ObjectOptimisticLockingFailureException(Product.class, id));
 
-        mvc.perform(put("/api/products/{id}", id).with(admin())
+        mockMvc.perform(put("/api/products/{id}", id).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content(validBody(UUID.randomUUID())))
                 .andExpect(status().isConflict());
     }
@@ -279,7 +279,7 @@ class ProductControllerTest {
         inactive.setActive(false);
         when(service.changeActive(id, false)).thenReturn(inactive);
 
-        mvc.perform(patch("/api/products/{id}/active", id).with(admin())
+        mockMvc.perform(patch("/api/products/{id}/active", id).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
@@ -287,14 +287,14 @@ class ProductControllerTest {
 
     @Test
     void changeActiveWithoutBodyFieldIs400() throws Exception {
-        mvc.perform(patch("/api/products/{id}/active", UUID.randomUUID()).with(admin())
+        mockMvc.perform(patch("/api/products/{id}/active", UUID.randomUUID()).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void changeActiveAsCustomerIs403() throws Exception {
-        mvc.perform(patch("/api/products/{id}/active", UUID.randomUUID()).with(customer())
+        mockMvc.perform(patch("/api/products/{id}/active", UUID.randomUUID()).with(customer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
                 .andExpect(status().isForbidden());
     }
@@ -303,9 +303,9 @@ class ProductControllerTest {
     void adminListingRequiresAdmin() throws Exception {
         when(service.findAll(any(), any())).thenReturn(new PageImpl<>(List.of(product(UUID.randomUUID()))));
 
-        mvc.perform(get("/api/admin/products")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/admin/products").with(customer())).andExpect(status().isForbidden());
-        mvc.perform(get("/api/admin/products").with(admin()))
+        mockMvc.perform(get("/api/admin/products")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/products").with(customer())).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/products").with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].name").value("Leite integral 1L"));
     }
@@ -314,7 +314,7 @@ class ProductControllerTest {
     void adminListingBindsTheActiveFilter() throws Exception {
         when(service.findAll(any(), any())).thenReturn(new PageImpl<>(List.of()));
 
-        mvc.perform(get("/api/admin/products").with(admin()).param("active", "false")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/admin/products").with(admin()).param("active", "false")).andExpect(status().isOk());
 
         verify(service).findAll(argThat(filter -> Boolean.FALSE.equals(filter.active())), any());
     }
@@ -326,8 +326,8 @@ class ProductControllerTest {
         inactive.setActive(false);
         when(service.findById(id)).thenReturn(inactive);
 
-        mvc.perform(get("/api/admin/products/{id}", id).with(customer())).andExpect(status().isForbidden());
-        mvc.perform(get("/api/admin/products/{id}", id).with(admin()))
+        mockMvc.perform(get("/api/admin/products/{id}", id).with(customer())).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/products/{id}", id).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
     }

@@ -45,7 +45,7 @@ class UserControllerTest {
             "{\"name\":\"  Marta   Oliveira \",\"email\":\"Marta@Example.com\",\"password\":\"Senha1234\"}";
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc;
 
     @MockitoBean
     private UserService service;
@@ -66,7 +66,7 @@ class UserControllerTest {
     void registrationIsPublicAndReturns201WithoutExposingSecrets() throws Exception {
         when(service.register(any(), eq("Senha1234"))).thenReturn(user());
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Marta Oliveira"))
                 .andExpect(jsonPath("$.email").value("marta@example.com"))
@@ -78,7 +78,7 @@ class UserControllerTest {
     void registrationNormalizesTheNameAndTheEmailBeforeCallingTheService() throws Exception {
         when(service.register(any(), any())).thenReturn(user());
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
@@ -91,7 +91,7 @@ class UserControllerTest {
     void registrationWithInvalidFieldsIs400WithFieldErrors() throws Exception {
         String body = "{\"name\":\"Marta\",\"email\":\"invalido\",\"password\":\"123\"}";
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").value("Informe nome e sobrenome."))
                 .andExpect(jsonPath("$.errors.email").value("O e-mail é inválido."))
@@ -103,14 +103,14 @@ class UserControllerTest {
     void registrationWithSpacesAroundTheEmailIs400() throws Exception {
         String body = "{\"name\":\"Marta Oliveira\",\"email\":\" marta@example.com \",\"password\":\"Senha1234\"}";
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.email").value("O e-mail é inválido."));
     }
 
     @Test
     void registrationWithEmptyBodyFieldsIs400() throws Exception {
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").exists())
                 .andExpect(jsonPath("$.errors.email").exists())
@@ -121,7 +121,7 @@ class UserControllerTest {
     void registrationWithDuplicatedEmailIs409() throws Exception {
         when(service.register(any(), any())).thenThrow(new AlreadyExistsException("E-mail já cadastrado."));
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("E-mail já cadastrado."));
     }
@@ -130,20 +130,20 @@ class UserControllerTest {
     void registrationWhenKeycloakIsDownIs502() throws Exception {
         when(service.register(any(), any())).thenThrow(new KeycloakIntegrationException("indisponível"));
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isBadGateway());
     }
 
     @Test
     void currentUserWithoutTokenIs401() throws Exception {
-        mvc.perform(get("/api/users/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/users/me")).andExpect(status().isUnauthorized());
     }
 
     @Test
     void currentUserReturnsTheProfileOfTheAuthenticatedUser() throws Exception {
         when(service.getCurrentUser(any())).thenReturn(user());
 
-        mvc.perform(get("/api/users/me").with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()))))
+        mockMvc.perform(get("/api/users/me").with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("marta@example.com"));
     }
