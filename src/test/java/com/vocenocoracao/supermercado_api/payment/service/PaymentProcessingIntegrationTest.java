@@ -1,5 +1,7 @@
 package com.vocenocoracao.supermercado_api.payment.service;
 
+import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
+import com.vocenocoracao.supermercado_api.order.service.OrderDetails;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -333,5 +335,67 @@ class PaymentProcessingIntegrationTest {
 
         assertThat(paymentRepository.findStalledApproved(future, batch))
                 .extracting(payment -> payment.getOrder().getId()).doesNotContain(approvedOrder);
+    }
+
+    @Test
+    void theSummaryFollowsTheOrderThroughItsLifecycle() {
+        User user = newUser();
+        cartService.addItem(user, product("banana").getId(), 2);
+        UUID orderId = orderService.checkout(user).order().getId();
+
+        OrderSummary pending = orderService.findAll(user, PageRequest.of(0, 20)).getContent().getFirst();
+        assertThat(pending.status()).isEqualTo(OrderStatus.PAYMENT_PENDING);
+        assertThat(pending.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
+
+        paymentService.process(orderId);
+        OrderSummary approved = orderService.findAll(user, PageRequest.of(0, 20)).getContent().getFirst();
+        assertThat(approved.status()).isEqualTo(OrderStatus.PAYMENT_PENDING);
+        assertThat(approved.paymentStatus()).isEqualTo(PaymentStatus.APPROVED);
+
+        orderFulfillmentService.fulfill(orderId);
+        OrderSummary paid = orderService.findAll(user, PageRequest.of(0, 20)).getContent().getFirst();
+        assertThat(paid.status()).isEqualTo(OrderStatus.PAID);
+        assertThat(paid.paymentStatus()).isEqualTo(PaymentStatus.APPROVED);
+    }
+
+    @Test
+    void theDetailOfADeclinedOrderExposesTheReason() {
+        User user = newUser();
+        cartService.addItem(user, product("arroz").getId(), 40);
+        UUID orderId = orderService.checkout(user).order().getId();
+        paymentService.process(orderId);
+
+        OrderDetails details = orderService.findById(user, orderId);
+
+        assertThat(details.order().getStatus()).isEqualTo(OrderStatus.PAYMENT_DECLINED);
+        assertThat(details.payment().getStatus()).isEqualTo(PaymentStatus.DECLINED);
+        assertThat(details.payment().getFailureReason()).contains("limite");
+    }
+
+    @Test
+    void theDetailOfACancelledOrderExposesTheRefundReason() {
+        int original = stockOf("cenoura (kg)");
+        User firstUser = newUser();
+        User secondUser = newUser();
+
+        try {
+            cartService.addItem(firstUser, product("cenoura (kg)").getId(), 2);
+            UUID firstOrder = orderService.checkout(firstUser).order().getId();
+            cartService.addItem(secondUser, product("cenoura (kg)").getId(), 2);
+            UUID secondOrder = orderService.checkout(secondUser).order().getId();
+            paymentService.process(firstOrder);
+            paymentService.process(secondOrder);
+            orderFulfillmentService.fulfill(firstOrder);
+            orderFulfillmentService.fulfill(secondOrder);
+
+            OrderDetails cancelled = orderService.findById(secondUser, secondOrder);
+
+            assertThat(cancelled.order().getStatus()).isEqualTo(OrderStatus.CANCELLED);
+            assertThat(cancelled.payment().getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+            assertThat(cancelled.payment().getFailureReason())
+                    .isEqualTo("Estoque insuficiente para: Cenoura (kg) (disponível: 1).");
+        } finally {
+            setStock("cenoura (kg)", original);
+        }
     }
 }

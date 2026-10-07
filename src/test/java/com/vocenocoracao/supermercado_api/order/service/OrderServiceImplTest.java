@@ -1,5 +1,12 @@
 package com.vocenocoracao.supermercado_api.order.service;
 
+import java.time.Instant;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Page;
+import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
+import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -272,5 +279,70 @@ class OrderServiceImplTest {
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getTotal()).isEqualByComparingTo("6.99");
+    }
+
+    @Test
+    void findAllReturnsTheSummariesOfTheUserWithoutAnyExtraSorting() {
+        PageRequest pageable = PageRequest.of(1, 5);
+        OrderSummary summary = new OrderSummary(
+                UUID.randomUUID(), OrderStatus.PAID, new BigDecimal("49.87"), Instant.now(), PaymentStatus.APPROVED);
+        when(orderRepository.findSummariesByUserId(user.getId(), pageable))
+                .thenReturn(new PageImpl<>(List.of(summary), pageable, 6));
+
+        Page<OrderSummary> page = service.findAll(user, pageable);
+
+        assertThat(page.getContent()).containsExactly(summary);
+        assertThat(page.getTotalElements()).isEqualTo(6);
+    }
+
+    @Test
+    void findAllRejectsAClientSuppliedSort() {
+        PageRequest pageable = PageRequest.of(0, 20, Sort.by("total"));
+
+        assertThatThrownBy(() -> service.findAll(user, pageable))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessage("A listagem de pedidos não aceita ordenação.");
+        verify(orderRepository, never()).findSummariesByUserId(any(), any());
+    }
+
+    @Test
+    void findByIdReturnsTheOrderItsItemsAndItsPayment() {
+        Order order = new Order();
+        order.setId(UUID.randomUUID());
+        Payment payment = new Payment();
+        OrderItem orderItem = new OrderItem();
+        when(orderRepository.findByIdAndUserId(order.getId(), user.getId())).thenReturn(Optional.of(order));
+        when(orderItemRepository.findAllWithProductByOrderId(order.getId())).thenReturn(List.of(orderItem));
+        when(paymentRepository.findByOrderId(order.getId())).thenReturn(Optional.of(payment));
+
+        OrderDetails details = service.findById(user, order.getId());
+
+        assertThat(details.order()).isSameAs(order);
+        assertThat(details.items()).containsExactly(orderItem);
+        assertThat(details.payment()).isSameAs(payment);
+    }
+
+    @Test
+    void findByIdOfAnotherUsersOrderIsReportedAsNotFound() {
+        UUID orderId = UUID.randomUUID();
+        when(orderRepository.findByIdAndUserId(orderId, user.getId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.findById(user, orderId))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Pedido não encontrado.");
+        verify(orderItemRepository, never()).findAllWithProductByOrderId(any());
+    }
+
+    @Test
+    void findByIdFailsWhenTheOrderHasNoPayment() {
+        Order order = new Order();
+        order.setId(UUID.randomUUID());
+        when(orderRepository.findByIdAndUserId(order.getId(), user.getId())).thenReturn(Optional.of(order));
+        when(orderItemRepository.findAllWithProductByOrderId(order.getId())).thenReturn(List.of());
+        when(paymentRepository.findByOrderId(order.getId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.findById(user, order.getId()))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Pagamento não encontrado.");
     }
 }

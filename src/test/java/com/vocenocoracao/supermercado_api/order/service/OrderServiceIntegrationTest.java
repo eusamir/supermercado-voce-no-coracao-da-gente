@@ -1,5 +1,8 @@
 package com.vocenocoracao.supermercado_api.order.service;
 
+import org.springframework.data.domain.Page;
+import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
+import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -265,5 +268,102 @@ class OrderServiceIntegrationTest {
         assertThat(firstPayment.getId()).isNotEqualTo(secondPayment.getId());
         assertThat(firstPayment.getAmount()).isEqualByComparingTo("6.99");
         assertThat(secondPayment.getAmount()).isEqualByComparingTo("28.90");
+    }
+
+    private User anotherUser() {
+        User other = new User();
+        other.setKeycloakId(UUID.randomUUID());
+        other.setName("Pedro Oliveira");
+        other.setEmail(UUID.randomUUID() + "@example.com");
+        return userRepository.saveAndFlush(other);
+    }
+
+    @Test
+    void listingShowsOnlyTheOrdersOfTheUserNewestFirst() throws Exception {
+        User other = anotherUser();
+        cartService.addItem(user, product("banana").getId(), 1);
+        UUID first = orderService.checkout(user).order().getId();
+        Thread.sleep(10);
+        cartService.addItem(user, product("arroz").getId(), 1);
+        UUID second = orderService.checkout(user).order().getId();
+        cartService.addItem(other, product("leite integral").getId(), 1);
+        UUID foreign = orderService.checkout(other).order().getId();
+
+        Page<OrderSummary> page = orderService.findAll(user, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).extracting(OrderSummary::id).containsExactly(second, first);
+        assertThat(page.getContent()).extracting(OrderSummary::id).doesNotContain(foreign);
+        assertThat(page.getTotalElements()).isEqualTo(2);
+    }
+
+    @Test
+    void listingCarriesTheStatusOfTheOrderAndOfThePayment() {
+        cartService.addItem(user, product("banana").getId(), 3);
+        orderService.checkout(user);
+
+        OrderSummary summary = orderService.findAll(user, PageRequest.of(0, 20))
+                .getContent().getFirst();
+
+        assertThat(summary.status()).isEqualTo(OrderStatus.PAYMENT_PENDING);
+        assertThat(summary.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(summary.total()).isEqualByComparingTo("20.97");
+        assertThat(summary.createdAt()).isNotNull();
+    }
+
+    @Test
+    void listingIsPaginatedWithTheTotalOfAllTheOrders() throws Exception {
+        for (int index = 0; index < 3; index++) {
+            cartService.addItem(user, product("banana").getId(), 1);
+            orderService.checkout(user);
+            Thread.sleep(5);
+        }
+
+        Page<OrderSummary> firstPage = orderService.findAll(user, PageRequest.of(0, 2));
+        Page<OrderSummary> secondPage = orderService.findAll(user, PageRequest.of(1, 2));
+
+        assertThat(firstPage.getContent()).hasSize(2);
+        assertThat(secondPage.getContent()).hasSize(1);
+        assertThat(firstPage.getTotalElements()).isEqualTo(3);
+        assertThat(firstPage.getTotalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void listingOfAUserWithoutOrdersIsEmpty() {
+        Page<OrderSummary> page = orderService.findAll(user, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getTotalElements()).isZero();
+    }
+
+    @Test
+    void detailShowsTheItemsSortedByNameWithTheirSnapshotAndThePayment() {
+        cartService.addItem(user, product("leite integral").getId(), 2);
+        cartService.addItem(user, product("arroz").getId(), 1);
+        cartService.addItem(user, product("banana").getId(), 3);
+        UUID orderId = orderService.checkout(user).order().getId();
+
+        OrderDetails details = orderService.findById(user, orderId);
+
+        assertThat(details.items()).extracting(OrderItem::getName)
+                .containsExactly("Arroz branco 5kg", "Banana prata (kg)", "Leite integral 1L");
+        assertThat(details.items().getFirst().getProduct().getId()).isNotNull();
+        assertThat(details.items().getFirst().getUnitPrice()).isEqualByComparingTo("28.90");
+        assertThat(details.payment().getStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(details.payment().getAmount()).isEqualByComparingTo(details.order().getTotal());
+        assertThat(details.order().getTotal()).isEqualByComparingTo("60.45");
+    }
+
+    @Test
+    void detailOfAnotherUsersOrderIsReportedAsNotFound() {
+        cartService.addItem(user, product("banana").getId(), 1);
+        UUID orderId = orderService.checkout(user).order().getId();
+        User intruder = anotherUser();
+
+        assertThatThrownBy(() -> orderService.findById(intruder, orderId)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void detailOfAnUnknownOrderIsReportedAsNotFound() {
+        assertThatThrownBy(() -> orderService.findById(user, UUID.randomUUID())).isInstanceOf(NotFoundException.class);
     }
 }
