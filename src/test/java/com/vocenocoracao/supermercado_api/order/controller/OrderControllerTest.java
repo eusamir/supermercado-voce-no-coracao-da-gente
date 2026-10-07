@@ -1,5 +1,11 @@
 package com.vocenocoracao.supermercado_api.order.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.argThat;
+import org.springframework.data.domain.PageImpl;
+import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
+import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -13,6 +19,7 @@ import com.vocenocoracao.supermercado_api.exceptions.GlobalExceptionHandler;
 import com.vocenocoracao.supermercado_api.exceptions.InsufficientStockException;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
 import com.vocenocoracao.supermercado_api.order.controller.converter.OrderDetailsToOrderResponseDTOConverter;
+import com.vocenocoracao.supermercado_api.order.controller.converter.OrderSummaryToOrderSummaryResponseDTOConverter;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
 import com.vocenocoracao.supermercado_api.order.service.OrderDetails;
@@ -42,7 +49,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
         SecurityConfig.class,
         ModelMapperConfig.class,
         GlobalExceptionHandler.class,
-        OrderDetailsToOrderResponseDTOConverter.class
+        OrderDetailsToOrderResponseDTOConverter.class,
+        OrderSummaryToOrderSummaryResponseDTOConverter.class
 })
 class OrderControllerTest {
 
@@ -137,5 +145,95 @@ class OrderControllerTest {
         mockMvc.perform(post("/api/orders/checkout").with(customer()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Estoque insuficiente"));
+    }
+
+    @Test
+    void listingWithoutTokenIs401() throws Exception {
+        mockMvc.perform(get("/api/orders")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/orders/{id}", UUID.randomUUID())).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listingReturnsTheSummariesWithTheStatusOfTheOrderAndOfThePayment() throws Exception {
+        OrderSummary summary = new OrderSummary(
+                UUID.randomUUID(),
+                OrderStatus.PAID,
+                new BigDecimal("49.87"),
+                Instant.parse("2026-10-06T12:00:00Z"),
+                PaymentStatus.APPROVED
+        );
+        when(orderService.findAll(any(), any())).thenReturn(new PageImpl<>(List.of(summary)));
+
+        mockMvc.perform(get("/api/orders").with(customer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(summary.id().toString()))
+                .andExpect(jsonPath("$.content[0].status").value("PAID"))
+                .andExpect(jsonPath("$.content[0].total").value(49.87))
+                .andExpect(jsonPath("$.content[0].paymentStatus").value("APPROVED"))
+                .andExpect(jsonPath("$.content[0].items").doesNotExist());
+    }
+
+    @Test
+    void listingAppliesTheDefaultAndMaximumPageSize() throws Exception {
+        when(orderService.findAll(any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        mockMvc.perform(get("/api/orders").with(customer())).andExpect(status().isOk());
+        mockMvc.perform(get("/api/orders").with(customer()).param("size", "500")).andExpect(status().isOk());
+
+        verify(orderService).findAll(any(), argThat(pageable -> pageable.getPageSize() == 20));
+        verify(orderService).findAll(any(), argThat(pageable -> pageable.getPageSize() == 100));
+    }
+
+    @Test
+    void listingWithASortIs400() throws Exception {
+        when(orderService.findAll(any(), any()))
+                .thenThrow(new InvalidRequestException("A listagem de pedidos não aceita ordenação."));
+
+        mockMvc.perform(get("/api/orders").with(customer()).param("sort", "total"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("A listagem de pedidos não aceita ordenação."));
+    }
+
+    @Test
+    void detailReturnsTheItemsAndThePayment() throws Exception {
+        OrderDetails details = details();
+        when(orderService.findById(user, details.order().getId())).thenReturn(details);
+
+        mockMvc.perform(get("/api/orders/{id}", details.order().getId()).with(customer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(details.order().getId().toString()))
+                .andExpect(jsonPath("$.items[0].name").value("Banana prata (kg)"))
+                .andExpect(jsonPath("$.payment.status").value("PENDING"))
+                .andExpect(jsonPath("$.payment.failureReason").doesNotExist());
+    }
+
+    @Test
+    void detailExposesTheReasonOfARefundedPayment() throws Exception {
+        OrderDetails details = details();
+        details.order().setStatus(OrderStatus.CANCELLED);
+        details.payment().setStatus(PaymentStatus.REFUNDED);
+        details.payment().setFailureReason("Estoque insuficiente para: Banana prata (kg) (disponível: 1).");
+        when(orderService.findById(any(), any())).thenReturn(details);
+
+        mockMvc.perform(get("/api/orders/{id}", details.order().getId()).with(customer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.payment.status").value("REFUNDED"))
+                .andExpect(jsonPath("$.payment.failureReason")
+                        .value("Estoque insuficiente para: Banana prata (kg) (disponível: 1)."));
+    }
+
+    @Test
+    void detailOfAnotherUsersOrderIs404() throws Exception {
+        when(orderService.findById(any(), any())).thenThrow(new NotFoundException("Pedido não encontrado."));
+
+        mockMvc.perform(get("/api/orders/{id}", UUID.randomUUID()).with(customer()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Pedido não encontrado."));
+    }
+
+    @Test
+    void detailWithAnInvalidIdIs400() throws Exception {
+        mockMvc.perform(get("/api/orders/{id}", "abc").with(customer())).andExpect(status().isBadRequest());
     }
 }
