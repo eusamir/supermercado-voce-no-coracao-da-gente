@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.payment.entity.Payment;
 import com.vocenocoracao.supermercado_api.payment.message.PaymentApprovedMessage;
@@ -34,6 +35,9 @@ class PaymentReconciliationJobTest {
     @Mock
     private PaymentMessagePublisher publisher;
 
+    @Mock
+    private BusinessMetrics businessMetrics;
+
     private PaymentReconciliationJob job;
 
     @BeforeEach
@@ -41,7 +45,8 @@ class PaymentReconciliationJobTest {
         job = new PaymentReconciliationJob(
                 paymentRepository,
                 publisher,
-                new PaymentReconciliationProperties(Duration.ofSeconds(60))
+                new PaymentReconciliationProperties(Duration.ofSeconds(60)),
+                businessMetrics
         );
     }
 
@@ -105,5 +110,30 @@ class PaymentReconciliationJobTest {
         job.republishStalledMessages();
 
         verify(publisher).publishPaymentRequested(new PaymentRequestedMessage(second.getId(), second.getOrder().getId()));
+    }
+
+    @Test
+    void countsEachRepublishedMessageByType() {
+        Payment pending = payment();
+        Payment approved = payment();
+        when(paymentRepository.findStalledPending(any(Instant.class), any(Pageable.class))).thenReturn(List.of(pending));
+        when(paymentRepository.findStalledApproved(any(Instant.class), any(Pageable.class))).thenReturn(List.of(approved));
+
+        job.republishStalledMessages();
+
+        verify(businessMetrics).messageRepublished("payment.requested");
+        verify(businessMetrics).messageRepublished("payment.approved");
+    }
+
+    @Test
+    void doesNotCountAMessageThatFailedToBeRepublished() {
+        Payment stuck = payment();
+        when(paymentRepository.findStalledPending(any(Instant.class), any(Pageable.class))).thenReturn(List.of(stuck));
+        when(paymentRepository.findStalledApproved(any(Instant.class), any(Pageable.class))).thenReturn(List.of());
+        doThrow(new IllegalStateException("broker fora")).when(publisher).publishPaymentRequested(any());
+
+        job.republishStalledMessages();
+
+        verify(businessMetrics, never()).messageRepublished(any());
     }
 }

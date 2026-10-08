@@ -4,6 +4,7 @@ import com.vocenocoracao.supermercado_api.cart.entity.Cart;
 import com.vocenocoracao.supermercado_api.cart.repository.CartRepository;
 import com.vocenocoracao.supermercado_api.cartItem.entity.CartItem;
 import com.vocenocoracao.supermercado_api.cartItem.repository.CartItemRepository;
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.exceptions.InsufficientStockException;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
@@ -44,6 +45,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final PaymentRepository paymentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final BusinessMetrics businessMetrics;
 
     public OrderServiceImpl(
             CartRepository cartRepository,
@@ -51,7 +53,8 @@ public class OrderServiceImpl implements OrderService {
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             PaymentRepository paymentRepository,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            BusinessMetrics businessMetrics
     ) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
@@ -59,6 +62,7 @@ public class OrderServiceImpl implements OrderService {
         this.orderItemRepository = orderItemRepository;
         this.paymentRepository = paymentRepository;
         this.eventPublisher = eventPublisher;
+        this.businessMetrics = businessMetrics;
     }
 
     @Override
@@ -93,6 +97,7 @@ public class OrderServiceImpl implements OrderService {
         cartItemRepository.flush();
 
         eventPublisher.publishEvent(new PaymentRequestedEvent(payment.getId(), order.getId()));
+        businessMetrics.orderPlaced();
 
         return new OrderDetails(order, orderItems, payment);
     }

@@ -1,5 +1,6 @@
 package com.vocenocoracao.supermercado_api.order.service.impl;
 
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.config.CacheConfig;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
@@ -31,17 +32,20 @@ public class OrderFulfillmentServiceImpl implements OrderFulfillmentService {
     private final OrderItemRepository orderItemRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final BusinessMetrics businessMetrics;
 
     public OrderFulfillmentServiceImpl(
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             PaymentRepository paymentRepository,
-            ProductRepository productRepository
+            ProductRepository productRepository,
+            BusinessMetrics businessMetrics
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.paymentRepository = paymentRepository;
         this.productRepository = productRepository;
+        this.businessMetrics = businessMetrics;
     }
 
     @CacheEvict(cacheNames = {CacheConfig.PRODUCT_LIST, CacheConfig.PRODUCT_DETAIL}, allEntries = true)
@@ -78,6 +82,7 @@ public class OrderFulfillmentServiceImpl implements OrderFulfillmentService {
 
         order.setStatus(OrderStatus.PAID);
         orderRepository.save(order);
+        businessMetrics.orderFulfilled(true);
     }
 
     private void cancelAndRefund(Order order, Payment payment, String reason) {
@@ -89,5 +94,6 @@ public class OrderFulfillmentServiceImpl implements OrderFulfillmentService {
 
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
+        businessMetrics.orderFulfilled(false);
     }
 }

@@ -3,10 +3,12 @@ package com.vocenocoracao.supermercado_api.payment.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
@@ -44,6 +46,9 @@ class OrderFulfillmentServiceImplTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private BusinessMetrics businessMetrics;
 
     @InjectMocks
     private OrderFulfillmentServiceImpl service;
@@ -192,5 +197,34 @@ class OrderFulfillmentServiceImplTest {
         when(orderRepository.findByIdForUpdate(unknown)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.fulfill(unknown)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void aPaidOrderIsCounted() {
+        stubLoading(List.of(item(banana, 3)), List.of(banana));
+
+        service.fulfill(order.getId());
+
+        verify(businessMetrics).orderFulfilled(true);
+    }
+
+    @Test
+    void aCancelledOrderIsCounted() {
+        stubLoading(List.of(item(arroz, 6)), List.of(arroz));
+
+        service.fulfill(order.getId());
+
+        verify(businessMetrics).orderFulfilled(false);
+    }
+
+    @Test
+    void aDuplicatedDeliveryIsNotCounted() {
+        order.setStatus(OrderStatus.PAID);
+        when(orderRepository.findByIdForUpdate(order.getId())).thenReturn(Optional.of(order));
+        when(paymentRepository.findByOrderId(order.getId())).thenReturn(Optional.of(payment));
+
+        service.fulfill(order.getId());
+
+        verify(businessMetrics, never()).orderFulfilled(anyBoolean());
     }
 }

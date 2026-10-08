@@ -12,6 +12,7 @@ import com.vocenocoracao.supermercado_api.cart.repository.CartRepository;
 import com.vocenocoracao.supermercado_api.cartItem.entity.CartItem;
 import com.vocenocoracao.supermercado_api.cartItem.repository.CartItemRepository;
 import com.vocenocoracao.supermercado_api.category.entity.Category;
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.exceptions.InsufficientStockException;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
@@ -66,6 +67,9 @@ class OrderServiceImplTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private BusinessMetrics businessMetrics;
 
     @InjectMocks
     private OrderServiceImpl service;
@@ -344,5 +348,25 @@ class OrderServiceImplTest {
         assertThatThrownBy(() -> service.findById(user, order.getId()))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Pagamento não encontrado.");
+    }
+
+    @Test
+    void checkoutCountsTheCreatedOrder() {
+        Product banana = product("Banana prata (kg)", "6.99", 10);
+        when(cartRepository.findByUserIdForUpdate(user.getId())).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findAllByCartId(cart.getId())).thenReturn(List.of(item(banana, 1)));
+        stubPersistence();
+
+        service.checkout(user);
+
+        verify(businessMetrics).orderPlaced();
+    }
+
+    @Test
+    void aFailedCheckoutDoesNotCountAnOrder() {
+        when(cartRepository.findByUserIdForUpdate(user.getId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.checkout(user)).isInstanceOf(InvalidRequestException.class);
+        verify(businessMetrics, never()).orderPlaced();
     }
 }

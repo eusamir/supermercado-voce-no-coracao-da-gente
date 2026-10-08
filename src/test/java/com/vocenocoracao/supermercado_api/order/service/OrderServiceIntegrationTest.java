@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.vocenocoracao.supermercado_api.cart.service.CartService;
 import com.vocenocoracao.supermercado_api.cart.service.impl.CartServiceImpl;
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.config.JpaConfig;
 import com.vocenocoracao.supermercado_api.exceptions.InsufficientStockException;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
@@ -23,6 +24,8 @@ import com.vocenocoracao.supermercado_api.product.entity.Product;
 import com.vocenocoracao.supermercado_api.product.repository.ProductRepository;
 import com.vocenocoracao.supermercado_api.user.entity.User;
 import com.vocenocoracao.supermercado_api.user.repository.UserRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -54,6 +57,7 @@ import org.testcontainers.utility.DockerImageName;
 @Import({
         JpaConfig.class,
         OrderServiceImpl.class,
+        BusinessMetrics.class,
         CartServiceImpl.class,
         OrderServiceIntegrationTest.PostgresConfig.class
 })
@@ -61,6 +65,11 @@ class OrderServiceIntegrationTest {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class PostgresConfig {
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
+
         @Bean
         @ServiceConnection
         PostgreSQLContainer postgres() {

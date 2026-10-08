@@ -1,5 +1,6 @@
 package com.vocenocoracao.supermercado_api.payment.service.impl;
 
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
@@ -25,17 +26,20 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentGateway paymentGateway;
     private final ApplicationEventPublisher eventPublisher;
+    private final BusinessMetrics businessMetrics;
 
     public PaymentServiceImpl(
             OrderRepository orderRepository,
             PaymentRepository paymentRepository,
             PaymentGateway paymentGateway,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            BusinessMetrics businessMetrics
     ) {
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.paymentGateway = paymentGateway;
         this.eventPublisher = eventPublisher;
+        this.businessMetrics = businessMetrics;
     }
 
     @Override
@@ -57,6 +61,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setTransactionId(result.transactionId());
             paymentRepository.save(payment);
             eventPublisher.publishEvent(new PaymentApprovedEvent(payment.getId(), orderId));
+            businessMetrics.paymentProcessed(true);
             return;
         }
 
@@ -66,6 +71,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         order.setStatus(OrderStatus.PAYMENT_DECLINED);
         orderRepository.save(order);
+        businessMetrics.paymentProcessed(false);
     }
 
     private String truncate(String reason) {

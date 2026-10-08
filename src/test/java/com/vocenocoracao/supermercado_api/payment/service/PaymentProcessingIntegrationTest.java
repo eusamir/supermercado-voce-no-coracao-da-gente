@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.vocenocoracao.supermercado_api.cart.service.CartService;
 import com.vocenocoracao.supermercado_api.cart.service.impl.CartServiceImpl;
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.config.JpaConfig;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
@@ -28,6 +29,9 @@ import com.vocenocoracao.supermercado_api.product.entity.Product;
 import com.vocenocoracao.supermercado_api.product.repository.ProductRepository;
 import com.vocenocoracao.supermercado_api.user.entity.User;
 import com.vocenocoracao.supermercado_api.user.repository.UserRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -58,6 +62,7 @@ import org.testcontainers.utility.DockerImageName;
 @Import({
         JpaConfig.class,
         OrderServiceImpl.class,
+        BusinessMetrics.class,
         CartServiceImpl.class,
         PaymentServiceImpl.class,
         OrderFulfillmentServiceImpl.class,
@@ -67,6 +72,11 @@ class PaymentProcessingIntegrationTest {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class InfrastructureConfig {
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
+
         @Bean
         @ServiceConnection
         PostgreSQLContainer postgres() {
@@ -102,6 +112,16 @@ class PaymentProcessingIntegrationTest {
 
     @Autowired
     private PaymentRepository paymentRepository;
+
+    @Autowired
+    private MeterRegistry meterRegistry;
+
+    private double counter(String name, String tagKey, String tagValue) {
+        Counter counter = tagKey == null
+                ? meterRegistry.find(name).counter()
+                : meterRegistry.find(name).tag(tagKey, tagValue).counter();
+        return counter == null ? 0 : counter.count();
+    }
 
     private User newUser() {
         User user = new User();
@@ -397,5 +417,30 @@ class PaymentProcessingIntegrationTest {
         } finally {
             setStock("cenoura (kg)", original);
         }
+    }
+
+    @Test
+    void businessCountersFollowTheOrderLifecycleAndIgnoreDuplicatedMessages() {
+        double created = counter("supermercado.orders.placed", null, null);
+        double approved = counter("supermercado.payments.processed", "result", "approved");
+        double declined = counter("supermercado.payments.processed", "result", "declined");
+        double paid = counter("supermercado.orders.fulfilled", "result", "paid");
+        double cancelled = counter("supermercado.orders.fulfilled", "result", "cancelled");
+
+        UUID paidOrder = checkout(newUser(), "banana", 1);
+        paymentService.process(paidOrder);
+        paymentService.process(paidOrder);
+        orderFulfillmentService.fulfill(paidOrder);
+        orderFulfillmentService.fulfill(paidOrder);
+
+        UUID declinedOrder = checkout(newUser(), "arroz", 40);
+        paymentService.process(declinedOrder);
+        paymentService.process(declinedOrder);
+
+        assertThat(counter("supermercado.orders.placed", null, null)).isEqualTo(created + 2);
+        assertThat(counter("supermercado.payments.processed", "result", "approved")).isEqualTo(approved + 1);
+        assertThat(counter("supermercado.payments.processed", "result", "declined")).isEqualTo(declined + 1);
+        assertThat(counter("supermercado.orders.fulfilled", "result", "paid")).isEqualTo(paid + 1);
+        assertThat(counter("supermercado.orders.fulfilled", "result", "cancelled")).isEqualTo(cancelled);
     }
 }

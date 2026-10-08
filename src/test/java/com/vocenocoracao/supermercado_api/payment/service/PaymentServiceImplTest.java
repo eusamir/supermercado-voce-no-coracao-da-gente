@@ -3,10 +3,12 @@ package com.vocenocoracao.supermercado_api.payment.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
@@ -43,6 +45,9 @@ class PaymentServiceImplTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private BusinessMetrics businessMetrics;
 
     @InjectMocks
     private PaymentServiceImpl service;
@@ -149,5 +154,37 @@ class PaymentServiceImplTest {
         when(paymentRepository.findByOrderId(order.getId())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.process(order.getId())).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void anApprovedChargeIsCountedAsApproved() {
+        stubLoading();
+        when(paymentGateway.charge(order.getId(), payment.getAmount()))
+                .thenReturn(PaymentGatewayResult.approved("TXN-1"));
+
+        service.process(order.getId());
+
+        verify(businessMetrics).paymentProcessed(true);
+    }
+
+    @Test
+    void aDeclinedChargeIsCountedAsDeclined() {
+        stubLoading();
+        when(paymentGateway.charge(order.getId(), payment.getAmount()))
+                .thenReturn(PaymentGatewayResult.declined("recusado"));
+
+        service.process(order.getId());
+
+        verify(businessMetrics).paymentProcessed(false);
+    }
+
+    @Test
+    void anAlreadyProcessedPaymentIsNotCountedAgain() {
+        stubLoading();
+        payment.setStatus(PaymentStatus.APPROVED);
+
+        service.process(order.getId());
+
+        verify(businessMetrics, never()).paymentProcessed(anyBoolean());
     }
 }

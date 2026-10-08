@@ -1,5 +1,6 @@
 package com.vocenocoracao.supermercado_api.payment.job;
 
+import com.vocenocoracao.supermercado_api.common.BusinessMetrics;
 import com.vocenocoracao.supermercado_api.payment.entity.Payment;
 import com.vocenocoracao.supermercado_api.payment.message.PaymentApprovedMessage;
 import com.vocenocoracao.supermercado_api.payment.message.PaymentRequestedMessage;
@@ -22,15 +23,18 @@ public class PaymentReconciliationJob {
     private final PaymentRepository paymentRepository;
     private final PaymentMessagePublisher publisher;
     private final PaymentReconciliationProperties properties;
+    private final BusinessMetrics businessMetrics;
 
     public PaymentReconciliationJob(
             PaymentRepository paymentRepository,
             PaymentMessagePublisher publisher,
-            PaymentReconciliationProperties properties
+            PaymentReconciliationProperties properties,
+            BusinessMetrics businessMetrics
     ) {
         this.paymentRepository = paymentRepository;
         this.publisher = publisher;
         this.properties = properties;
+        this.businessMetrics = businessMetrics;
     }
 
     @Scheduled(fixedDelayString = "${payment.reconciliation.interval-ms:30000}")
@@ -40,6 +44,7 @@ public class PaymentReconciliationJob {
         for (Payment payment : paymentRepository.findStalledPending(threshold, BATCH)) {
             try {
                 publisher.publishPaymentRequested(new PaymentRequestedMessage(payment.getId(), payment.getOrder().getId()));
+                businessMetrics.messageRepublished("payment.requested");
                 log.warn("payment.requested reenviado para o pedido {}", payment.getOrder().getId());
             } catch (RuntimeException exception) {
                 log.error("Falha ao reenviar payment.requested do pedido {}", payment.getOrder().getId(), exception);
@@ -49,6 +54,7 @@ public class PaymentReconciliationJob {
         for (Payment payment : paymentRepository.findStalledApproved(threshold, BATCH)) {
             try {
                 publisher.publishPaymentApproved(new PaymentApprovedMessage(payment.getId(), payment.getOrder().getId()));
+                businessMetrics.messageRepublished("payment.approved");
                 log.warn("payment.approved reenviado para o pedido {}", payment.getOrder().getId());
             } catch (RuntimeException exception) {
                 log.error("Falha ao reenviar payment.approved do pedido {}", payment.getOrder().getId(), exception);
