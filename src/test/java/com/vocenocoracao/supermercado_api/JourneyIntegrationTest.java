@@ -120,6 +120,11 @@ class JourneyIntegrationTest {
         return call(HttpMethod.GET, "/api/products/" + productId, null, null).getBody().get("stock").asInt();
     }
 
+    private void awaitStock(String productId, int expectedStock) {
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertThat(stockOf(productId)).isEqualTo(expectedStock));
+    }
+
     private void addToCart(String token, String productId, int quantity) {
         ResponseEntity<JsonNode> response = call(HttpMethod.POST, "/api/cart/items", token,
                 Map.of("productId", productId, "quantity", quantity));
@@ -186,7 +191,7 @@ class JourneyIntegrationTest {
         assertThat(orders.at("/content/0/status").asText()).isEqualTo("PAID");
         assertThat(orders.at("/content/0/paymentStatus").asText()).isEqualTo("APPROVED");
 
-        assertThat(stockOf(banana.get("id").asText())).isEqualTo(bananaStockBefore - 3);
+        awaitStock(banana.get("id").asText(), bananaStockBefore - 3);
     }
 
     @Test
@@ -244,7 +249,7 @@ class JourneyIntegrationTest {
         String orderId = checkout(buyerToken);
         awaitOrderStatus(buyerToken, orderId, "PAID");
 
-        assertThat(stockOf(productId)).isZero();
+        awaitStock(productId, 0);
         ResponseEntity<JsonNode> soldOut = call(HttpMethod.POST, "/api/cart/items", buyerToken,
                 Map.of("productId", productId, "quantity", 1));
         assertThat(soldOut.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
