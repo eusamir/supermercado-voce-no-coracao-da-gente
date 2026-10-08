@@ -59,6 +59,20 @@ services:
     networks:
       - local_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: supermercado-redis
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - local_network
+
   api:
     build: .
     container_name: supermercado-api
@@ -68,6 +82,8 @@ services:
       rabbitmq:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       POSTGRES_HOST: postgres
@@ -79,12 +95,14 @@ services:
       RABBITMQ_PORT: "5672"
       RABBITMQ_USER: ${RABBITMQ_USER:-supermercado}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-supermercado}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
       KEYCLOAK_BASE_URL: http://keycloak:7080
       KEYCLOAK_ISSUER_URI: http://localhost:7080/realms/supermercado
       KEYCLOAK_JWK_SET_URI: http://keycloak:7080/realms/supermercado/protocol/openid-connect/certs
       KEYCLOAK_BACKEND_CLIENT_SECRET: ${KEYCLOAK_BACKEND_CLIENT_SECRET:-supermercado-backend-secret}
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     healthcheck:
       test: [ "CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3" ]
       interval: 10s
