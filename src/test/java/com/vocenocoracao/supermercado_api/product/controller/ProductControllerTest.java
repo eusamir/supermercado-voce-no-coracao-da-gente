@@ -21,6 +21,9 @@ import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.product.controller.converter.ProductRequestDTOToProductConverter;
 import com.vocenocoracao.supermercado_api.product.controller.converter.ProductToProductResponseDTOConverter;
+import com.vocenocoracao.supermercado_api.product.dto.ProductCategoryDTO;
+import com.vocenocoracao.supermercado_api.product.dto.ProductPageDTO;
+import com.vocenocoracao.supermercado_api.product.dto.ProductResponseDTO;
 import com.vocenocoracao.supermercado_api.product.entity.Product;
 import com.vocenocoracao.supermercado_api.product.service.ProductService;
 import java.math.BigDecimal;
@@ -32,10 +35,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -54,6 +57,9 @@ class ProductControllerTest {
 
     @MockitoBean
     private ProductService service;
+
+    @MockitoBean
+    private ProductCatalogReader catalogReader;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
@@ -86,10 +92,22 @@ class ProductControllerTest {
         return product;
     }
 
+    private ProductResponseDTO productResponse(UUID id) {
+        return new ProductResponseDTO(
+                id,
+                "Leite integral 1L",
+                "Leite UHT integral",
+                new BigDecimal("5.29"),
+                200,
+                true,
+                new ProductCategoryDTO(UUID.randomUUID(), "Mercearia")
+        );
+    }
+
     @Test
     void listingIsPublicAndReturnsStockAndCategory() throws Exception {
-        when(service.findAllActive(any(), any()))
-                .thenReturn(new PageImpl<>(List.of(product(UUID.randomUUID()))));
+        when(catalogReader.findPage(any(), any()))
+                .thenReturn(new ProductPageDTO(List.of(productResponse(UUID.randomUUID())), 1));
 
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
@@ -102,25 +120,25 @@ class ProductControllerTest {
     @Test
     void listingBindsSearchAndCategoryFilters() throws Exception {
         UUID categoryId = UUID.randomUUID();
-        when(service.findAllActive(any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(catalogReader.findPage(any(), any())).thenReturn(new ProductPageDTO(List.of(), 0));
 
         mockMvc.perform(get("/api/products").param("search", "leite").param("categoryId", categoryId.toString()))
                 .andExpect(status().isOk());
 
-        verify(service).findAllActive(
+        verify(catalogReader).findPage(
                 argThat(filter -> "leite".equals(filter.search()) && categoryId.equals(filter.categoryId())),
                 any());
     }
 
     @Test
     void listingAppliesTheDefaultAndMaximumPageSize() throws Exception {
-        when(service.findAllActive(any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(catalogReader.findPage(any(), any())).thenReturn(new ProductPageDTO(List.of(), 0));
 
         mockMvc.perform(get("/api/products")).andExpect(status().isOk());
         mockMvc.perform(get("/api/products").param("size", "500")).andExpect(status().isOk());
 
-        verify(service).findAllActive(any(), argThat(pageable -> pageable.getPageSize() == 20));
-        verify(service).findAllActive(any(), argThat(pageable -> pageable.getPageSize() == 100));
+        verify(catalogReader).findPage(any(), argThat(pageable -> pageable.getPageSize() == 20));
+        verify(catalogReader).findPage(any(), argThat(pageable -> pageable.getPageSize() == 100));
     }
 
     @Test
@@ -130,7 +148,7 @@ class ProductControllerTest {
 
     @Test
     void listingWithInvalidSortIs400() throws Exception {
-        when(service.findAllActive(any(), any()))
+        when(catalogReader.findPage(any(), any()))
                 .thenThrow(new InvalidRequestException("Ordenação inválida. Campos permitidos: name, price."));
 
         mockMvc.perform(get("/api/products").param("sort", "stock"))
@@ -141,7 +159,7 @@ class ProductControllerTest {
     @Test
     void detailIsPublic() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.findActiveById(id)).thenReturn(product(id));
+        when(catalogReader.findById(id)).thenReturn(productResponse(id));
 
         mockMvc.perform(get("/api/products/{id}", id))
                 .andExpect(status().isOk())
@@ -151,7 +169,7 @@ class ProductControllerTest {
     @Test
     void detailOfHiddenProductIs404() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.findActiveById(id)).thenThrow(new NotFoundException("Produto não encontrado."));
+        when(catalogReader.findById(id)).thenThrow(new NotFoundException("Produto não encontrado."));
 
         mockMvc.perform(get("/api/products/{id}", id))
                 .andExpect(status().isNotFound())

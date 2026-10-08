@@ -1,21 +1,23 @@
 package com.vocenocoracao.supermercado_api.product.controller;
 
 import com.vocenocoracao.supermercado_api.config.OpenApiConfig;
+import com.vocenocoracao.supermercado_api.product.dto.ProductActiveDTO;
+import com.vocenocoracao.supermercado_api.product.dto.ProductFilterDTO;
+import com.vocenocoracao.supermercado_api.product.dto.ProductPageDTO;
+import com.vocenocoracao.supermercado_api.product.dto.ProductRequestDTO;
+import com.vocenocoracao.supermercado_api.product.dto.ProductResponseDTO;
+import com.vocenocoracao.supermercado_api.product.entity.Product;
+import com.vocenocoracao.supermercado_api.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.vocenocoracao.supermercado_api.product.dto.ProductActiveDTO;
-import com.vocenocoracao.supermercado_api.product.dto.ProductFilterDTO;
-import com.vocenocoracao.supermercado_api.product.dto.ProductRequestDTO;
-import com.vocenocoracao.supermercado_api.product.dto.ProductResponseDTO;
-import com.vocenocoracao.supermercado_api.product.entity.Product;
-import com.vocenocoracao.supermercado_api.product.service.ProductService;
 import java.util.UUID;
 import org.modelmapper.ModelMapper;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,10 +34,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ProductController {
     private final ProductService productService;
+    private final ProductCatalogReader productCatalogReader;
     private final ModelMapper modelMapper;
 
-    public ProductController(ProductService productService, ModelMapper modelMapper) {
+    public ProductController(
+            ProductService productService,
+            ProductCatalogReader productCatalogReader,
+            ModelMapper modelMapper
+    ) {
         this.productService = productService;
+        this.productCatalogReader = productCatalogReader;
         this.modelMapper = modelMapper;
     }
 
@@ -48,7 +56,8 @@ public class ProductController {
             @ParameterObject ProductFilterDTO filter,
             @ParameterObject Pageable pageable
     ) {
-        return productService.findAllActive(filter, pageable).map(this::toResponse);
+        ProductPageDTO page = productCatalogReader.findPage(filter, pageable);
+        return new PageImpl<>(page.content(), pageable, page.totalElements());
     }
 
     @Operation(summary = "Detalhar produto", description = "Público. Produto inativo, ou de categoria inativa, é tratado como não encontrado.")
@@ -58,7 +67,7 @@ public class ProductController {
     })
     @GetMapping("/api/products/{id}")
     public ProductResponseDTO findActiveById(@PathVariable UUID id) {
-        return toResponse(productService.findActiveById(id));
+        return productCatalogReader.findById(id);
     }
 
     @Operation(summary = "Listar produtos (administração)", description = "Requer papel ADMIN. Inclui produtos inativos e aceita o filtro active, além de search e categoryId.")
