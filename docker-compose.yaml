@@ -95,6 +95,7 @@ services:
       RABBITMQ_PORT: "5672"
       RABBITMQ_USER: ${RABBITMQ_USER:-supermercado}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-supermercado}
+      SPRING_PROFILES_ACTIVE: docker
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       KEYCLOAK_BASE_URL: http://keycloak:7080
@@ -104,7 +105,7 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
     healthcheck:
-      test: [ "CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3" ]
+      test: [ "CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3" ]
       interval: 10s
       timeout: 5s
       retries: 20
