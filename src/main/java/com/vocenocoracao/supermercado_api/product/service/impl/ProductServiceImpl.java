@@ -2,6 +2,7 @@ package com.vocenocoracao.supermercado_api.product.service.impl;
 
 import com.vocenocoracao.supermercado_api.category.entity.Category;
 import com.vocenocoracao.supermercado_api.category.service.CategoryService;
+import com.vocenocoracao.supermercado_api.config.CacheConfig;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.product.dto.ProductFilterDTO;
@@ -11,6 +12,7 @@ import com.vocenocoracao.supermercado_api.product.service.ProductService;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +37,7 @@ public class ProductServiceImpl implements ProductService {
         this.categoryService = categoryService;
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.PRODUCT_LIST, CacheConfig.PRODUCT_DETAIL}, allEntries = true)
     @Override
     @Transactional
     public Product create(Product product, UUID categoryId) {
@@ -42,6 +45,7 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.saveAndFlush(product);
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.PRODUCT_LIST, CacheConfig.PRODUCT_DETAIL}, allEntries = true)
     @Override
     @Transactional
     public Product update(Product product, UUID categoryId) {
@@ -53,6 +57,7 @@ public class ProductServiceImpl implements ProductService {
         return getOrThrow(saved.getId());
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.PRODUCT_LIST, CacheConfig.PRODUCT_DETAIL}, allEntries = true)
     @Override
     @Transactional
     public Product changeActive(UUID id, boolean active) {

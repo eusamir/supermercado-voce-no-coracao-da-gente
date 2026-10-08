@@ -1,5 +1,6 @@
 package com.vocenocoracao.supermercado_api.order.service.impl;
 
+import com.vocenocoracao.supermercado_api.config.CacheConfig;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class OrderFulfillmentServiceImpl implements OrderFulfillmentService {
         this.productRepository = productRepository;
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.PRODUCT_LIST, CacheConfig.PRODUCT_DETAIL}, allEntries = true)
     @Override
     @Transactional
     public void fulfill(UUID orderId) {

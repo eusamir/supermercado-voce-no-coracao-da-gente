@@ -4,10 +4,12 @@ import com.vocenocoracao.supermercado_api.category.dto.CategoryFilterDTO;
 import com.vocenocoracao.supermercado_api.category.entity.Category;
 import com.vocenocoracao.supermercado_api.category.repository.CategoryRepository;
 import com.vocenocoracao.supermercado_api.category.service.CategoryService;
+import com.vocenocoracao.supermercado_api.config.CacheConfig;
 import com.vocenocoracao.supermercado_api.exceptions.AlreadyExistsException;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -34,6 +36,7 @@ public class CategoryServiceImpl implements CategoryService {
         return saveAndFlush(category);
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.PRODUCT_LIST, CacheConfig.PRODUCT_DETAIL}, allEntries = true)
     @Override
     @Transactional
     public Category update(Category category) {
@@ -41,6 +44,7 @@ public class CategoryServiceImpl implements CategoryService {
         return saveAndFlush(category);
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.PRODUCT_LIST, CacheConfig.PRODUCT_DETAIL}, allEntries = true)
     @Override
     @Transactional
     public Category changeActive(UUID id, boolean active) {
