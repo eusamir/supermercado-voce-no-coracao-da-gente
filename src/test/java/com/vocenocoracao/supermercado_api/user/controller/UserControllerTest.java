@@ -1,5 +1,6 @@
 package com.vocenocoracao.supermercado_api.user.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -83,8 +84,8 @@ class UserControllerTest {
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(service).register(captor.capture(), eq("Senha1234"));
-        org.assertj.core.api.Assertions.assertThat(captor.getValue().getName()).isEqualTo("Marta Oliveira");
-        org.assertj.core.api.Assertions.assertThat(captor.getValue().getEmail()).isEqualTo("marta@example.com");
+        assertThat(captor.getValue().getName()).isEqualTo("Marta Oliveira");
+        assertThat(captor.getValue().getEmail()).isEqualTo("marta@example.com");
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.vocenocoracao.supermercado_api.cart.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -184,7 +185,7 @@ class CartControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.productId").value("O produto é obrigatório."))
                 .andExpect(jsonPath("$.errors.quantity").value("A quantidade deve ser de pelo menos 1."));
-        verify(cartService, never()).addItem(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+        verify(cartService, never()).addItem(any(), any(), anyInt());
     }
 
     @Test
@@ -197,7 +198,7 @@ class CartControllerTest {
 
     @Test
     void addItemWithoutStockIs409() throws Exception {
-        when(cartService.addItem(any(), any(), org.mockito.ArgumentMatchers.anyInt()))
+        when(cartService.addItem(any(), any(), anyInt()))
                 .thenThrow(new InsufficientStockException("Estoque insuficiente. Disponível: 1."));
 
         mockMvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
@@ -208,7 +209,7 @@ class CartControllerTest {
 
     @Test
     void addItemOfAnUnknownProductIs404() throws Exception {
-        when(cartService.addItem(any(), any(), org.mockito.ArgumentMatchers.anyInt()))
+        when(cartService.addItem(any(), any(), anyInt()))
                 .thenThrow(new NotFoundException("Produto não encontrado."));
 
         mockMvc.perform(post("/api/cart/items").with(customer()).contentType(MediaType.APPLICATION_JSON)
@@ -243,7 +244,7 @@ class CartControllerTest {
 
     @Test
     void updateItemNotInTheCartIs404() throws Exception {
-        when(cartService.updateItem(any(), any(), org.mockito.ArgumentMatchers.anyInt()))
+        when(cartService.updateItem(any(), any(), anyInt()))
                 .thenThrow(new NotFoundException("Item não encontrado no carrinho."));
 
         mockMvc.perform(put("/api/cart/items/{id}", UUID.randomUUID()).with(customer())

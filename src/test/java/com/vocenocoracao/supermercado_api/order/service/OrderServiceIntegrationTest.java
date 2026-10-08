@@ -1,8 +1,5 @@
 package com.vocenocoracao.supermercado_api.order.service;
 
-import org.springframework.data.domain.Page;
-import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
-import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -11,8 +8,10 @@ import com.vocenocoracao.supermercado_api.cart.service.impl.CartServiceImpl;
 import com.vocenocoracao.supermercado_api.config.JpaConfig;
 import com.vocenocoracao.supermercado_api.exceptions.InsufficientStockException;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
+import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
 import com.vocenocoracao.supermercado_api.order.repository.OrderRepository;
+import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
 import com.vocenocoracao.supermercado_api.order.service.impl.OrderServiceImpl;
 import com.vocenocoracao.supermercado_api.orderItem.entity.OrderItem;
 import com.vocenocoracao.supermercado_api.orderItem.repository.OrderItemRepository;
@@ -41,6 +40,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Propagation;

@@ -1,17 +1,17 @@
 package com.vocenocoracao.supermercado_api.category.controller;
 
-import com.vocenocoracao.supermercado_api.config.OpenApiConfig;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import com.vocenocoracao.supermercado_api.category.dto.CategoryActiveDTO;
 import com.vocenocoracao.supermercado_api.category.dto.CategoryFilterDTO;
 import com.vocenocoracao.supermercado_api.category.dto.CategoryRequestDTO;
 import com.vocenocoracao.supermercado_api.category.dto.CategoryResponseDTO;
 import com.vocenocoracao.supermercado_api.category.entity.Category;
 import com.vocenocoracao.supermercado_api.category.service.CategoryService;
+import com.vocenocoracao.supermercado_api.config.OpenApiConfig;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.modelmapper.ModelMapper;
 import org.springdoc.core.annotations.ParameterObject;

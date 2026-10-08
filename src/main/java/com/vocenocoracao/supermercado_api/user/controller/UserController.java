@@ -1,15 +1,15 @@
 package com.vocenocoracao.supermercado_api.user.controller;
 
 import com.vocenocoracao.supermercado_api.config.OpenApiConfig;
+import com.vocenocoracao.supermercado_api.user.dto.UserRegistrationDTO;
+import com.vocenocoracao.supermercado_api.user.dto.UserResponseDTO;
+import com.vocenocoracao.supermercado_api.user.entity.User;
+import com.vocenocoracao.supermercado_api.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.vocenocoracao.supermercado_api.user.dto.UserRegistrationDTO;
-import com.vocenocoracao.supermercado_api.user.dto.UserResponseDTO;
-import com.vocenocoracao.supermercado_api.user.entity.User;
-import com.vocenocoracao.supermercado_api.user.service.UserService;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

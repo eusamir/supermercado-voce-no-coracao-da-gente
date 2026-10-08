@@ -16,6 +16,7 @@ import com.vocenocoracao.supermercado_api.config.KeycloakProperties;
 import com.vocenocoracao.supermercado_api.exceptions.AlreadyExistsException;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
 import com.vocenocoracao.supermercado_api.exceptions.KeycloakIntegrationException;
+import java.net.URI;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -70,7 +71,7 @@ class KeycloakAdminClientTest {
                 .andExpect(jsonPath("$.credentials[0].value").value("Senha1234"))
                 .andExpect(jsonPath("$.credentials[0].temporary").value(false))
                 .andRespond(withStatus(HttpStatus.CREATED)
-                        .location(java.net.URI.create(USERS_URL + "/" + userId)));
+                        .location(URI.create(USERS_URL + "/" + userId)));
 
         UUID created = client.createUser("marta@example.com", "Marta", "Oliveira Santos", "Senha1234");
 

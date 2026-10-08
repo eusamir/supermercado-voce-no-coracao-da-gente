@@ -1,12 +1,5 @@
 package com.vocenocoracao.supermercado_api.order.service;
 
-import java.time.Instant;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Page;
-import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
-import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,9 +14,11 @@ import com.vocenocoracao.supermercado_api.cartItem.repository.CartItemRepository
 import com.vocenocoracao.supermercado_api.category.entity.Category;
 import com.vocenocoracao.supermercado_api.exceptions.InsufficientStockException;
 import com.vocenocoracao.supermercado_api.exceptions.InvalidRequestException;
+import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
 import com.vocenocoracao.supermercado_api.order.repository.OrderRepository;
+import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
 import com.vocenocoracao.supermercado_api.order.service.impl.OrderServiceImpl;
 import com.vocenocoracao.supermercado_api.orderItem.entity.OrderItem;
 import com.vocenocoracao.supermercado_api.orderItem.repository.OrderItemRepository;
@@ -34,6 +29,7 @@ import com.vocenocoracao.supermercado_api.payment.repository.PaymentRepository;
 import com.vocenocoracao.supermercado_api.product.entity.Product;
 import com.vocenocoracao.supermercado_api.user.entity.User;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +41,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {

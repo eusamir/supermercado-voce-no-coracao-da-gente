@@ -1,15 +1,15 @@
 package com.vocenocoracao.supermercado_api.order.controller;
 
 import com.vocenocoracao.supermercado_api.config.OpenApiConfig;
+import com.vocenocoracao.supermercado_api.order.dto.OrderResponseDTO;
+import com.vocenocoracao.supermercado_api.order.dto.OrderSummaryResponseDTO;
+import com.vocenocoracao.supermercado_api.order.service.OrderService;
+import com.vocenocoracao.supermercado_api.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.vocenocoracao.supermercado_api.order.dto.OrderResponseDTO;
-import com.vocenocoracao.supermercado_api.order.dto.OrderSummaryResponseDTO;
-import com.vocenocoracao.supermercado_api.order.service.OrderService;
-import com.vocenocoracao.supermercado_api.user.service.UserService;
 import java.util.UUID;
 import org.modelmapper.ModelMapper;
 import org.springdoc.core.annotations.ParameterObject;

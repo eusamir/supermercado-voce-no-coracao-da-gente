@@ -9,6 +9,7 @@ import com.vocenocoracao.supermercado_api.cartItem.entity.CartItem;
 import com.vocenocoracao.supermercado_api.config.JpaConfig;
 import com.vocenocoracao.supermercado_api.exceptions.InsufficientStockException;
 import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
+import com.vocenocoracao.supermercado_api.product.dto.ProductFilterDTO;
 import com.vocenocoracao.supermercado_api.product.entity.Product;
 import com.vocenocoracao.supermercado_api.product.repository.ProductRepository;
 import com.vocenocoracao.supermercado_api.user.entity.User;
@@ -76,7 +77,7 @@ class CartServiceIntegrationTest {
 
     private Product product(String name) {
         return productRepository.findAllVisible(
-                new com.vocenocoracao.supermercado_api.product.dto.ProductFilterDTO(name, null, null),
+                new ProductFilterDTO(name, null, null),
                 PageRequest.of(0, 1, Sort.by("name"))
         ).getFirst();
     }

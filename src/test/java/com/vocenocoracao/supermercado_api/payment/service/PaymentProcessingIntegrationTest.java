@@ -1,7 +1,5 @@
 package com.vocenocoracao.supermercado_api.payment.service;
 
-import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
-import com.vocenocoracao.supermercado_api.order.service.OrderDetails;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -12,6 +10,8 @@ import com.vocenocoracao.supermercado_api.exceptions.NotFoundException;
 import com.vocenocoracao.supermercado_api.order.entity.Order;
 import com.vocenocoracao.supermercado_api.order.entity.OrderStatus;
 import com.vocenocoracao.supermercado_api.order.repository.OrderRepository;
+import com.vocenocoracao.supermercado_api.order.repository.OrderSummary;
+import com.vocenocoracao.supermercado_api.order.service.OrderDetails;
 import com.vocenocoracao.supermercado_api.order.service.OrderFulfillmentService;
 import com.vocenocoracao.supermercado_api.order.service.OrderService;
 import com.vocenocoracao.supermercado_api.order.service.impl.OrderFulfillmentServiceImpl;

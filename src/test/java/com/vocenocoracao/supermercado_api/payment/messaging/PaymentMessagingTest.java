@@ -1,5 +1,6 @@
 package com.vocenocoracao.supermercado_api.payment.messaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -77,9 +78,9 @@ class PaymentMessagingTest {
 
     @Test
     void messagingNamesAreWiredConsistently() {
-        org.assertj.core.api.Assertions.assertThat(PaymentMessaging.REQUESTED_QUEUE)
+        assertThat(PaymentMessaging.REQUESTED_QUEUE)
                 .isEqualTo(PaymentMessaging.REQUESTED_ROUTING_KEY);
-        org.assertj.core.api.Assertions.assertThat(PaymentMessaging.APPROVED_QUEUE)
+        assertThat(PaymentMessaging.APPROVED_QUEUE)
                 .isEqualTo(PaymentMessaging.APPROVED_ROUTING_KEY);
     }
 }
