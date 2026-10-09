@@ -379,6 +379,31 @@ class PaymentProcessingIntegrationTest {
     }
 
     @Test
+    void aDeclinedPaymentGivesTheItemsBackToTheCart() {
+        User user = newUser();
+        cartService.addItem(user, product("arroz").getId(), 40);
+        UUID orderId = orderService.checkout(user).order().getId();
+        assertThat(cartService.getCart(user).items()).isEmpty();
+
+        paymentService.process(orderId);
+
+        assertThat(cartService.getCart(user).items()).hasSize(1);
+        assertThat(cartService.getCart(user).items().getFirst().getQuantity()).isEqualTo(40);
+    }
+
+    @Test
+    void anApprovedPaymentKeepsTheCartEmpty() {
+        User user = newUser();
+        cartService.addItem(user, product("banana").getId(), 2);
+        UUID orderId = orderService.checkout(user).order().getId();
+
+        paymentService.process(orderId);
+        orderFulfillmentService.fulfill(orderId);
+
+        assertThat(cartService.getCart(user).items()).isEmpty();
+    }
+
+    @Test
     void theDetailOfADeclinedOrderExposesTheReason() {
         User user = newUser();
         cartService.addItem(user, product("arroz").getId(), 40);

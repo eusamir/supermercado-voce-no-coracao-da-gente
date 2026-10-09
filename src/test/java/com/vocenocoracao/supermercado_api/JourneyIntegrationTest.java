@@ -207,6 +207,7 @@ class JourneyIntegrationTest {
 
         assertThat(declined.at("/payment/status").asText()).isEqualTo("DECLINED");
         assertThat(declined.at("/payment/failureReason").asText()).contains("limite");
+        assertThat(call(HttpMethod.GET, "/api/cart", token, null).getBody().get("items")).hasSize(1);
         assertThat(stockOf(arroz.get("id").asText())).isEqualTo(stockBefore);
     }
 
