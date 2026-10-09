@@ -1,309 +1,409 @@
 # Supermercado API
 
-API REST para um e-commerce de supermercado, desenvolvida como parte de um desafio técnico. A aplicação contempla catálogo de produtos, cadastro de usuários, carrinho de compras, checkout, processamento simulado de pagamento e consulta de pedidos.
+API REST para um e-commerce de supermercado, desenvolvida como parte de um desafio técnico utilizando Java 21 e Spring Boot 3.5.16. A aplicação oferece registo e perfil de utilizador, catálogo de produtos e categorias, carrinho de compras, checkout, processamento de pagamento simulado assíncrono e consulta de pedidos.
 
-> **Nota de validação:** este documento foi elaborado com base no escopo do desafio e nas decisões de arquitetura discutidas durante o desenvolvimento. Antes da entrega, confira os nomes exatos dos serviços Docker, portas, variáveis de ambiente, rotas, payloads e comandos diretamente no repositório. Não considere comandos ou cenários como testados até executá-los localmente.
+> **Nota:** confirme no repositório os nomes exatos dos serviços Docker, portas, variáveis de ambiente, rotas, payloads e comandos antes de executar. As imagens/diagramas devem ser referenciados por caminhos relativos do próprio repositório para que sejam renderizados no GitHub.
 
 ## Índice
 
 - [Funcionalidades](#funcionalidades)
 - [Tecnologias](#tecnologias)
 - [Arquitetura](#arquitetura)
-- [Decisões técnicas](#decisões-técnicas)
-- [Pré-requisitos](#pré-requisitos)
-- [Execução local com Docker](#execução-local-com-docker)
-- [Configuração e autenticação](#configuração-e-autenticação)
-- [Fluxos de negócio](#fluxos-de-negócio)
-- [API e documentação](#api-e-documentação)
+- [Decisões Técnicas](#decises-tcnicas)
+- [Pré-requisitos](#pr-requisitos)
+- [Execução Passo a Passo](#execuo-passo-a-passo)
+- [Autenticação e Configuração](#autenticao-e-configurao)
+- [Fluxos de Negócio](#fluxos-de-negcio)
+- [Exemplos de Uso da API](#exemplos-de-uso-da-api)
 - [Testes](#testes)
-- [Tratamento de erros](#tratamento-de-erros)
-- [Limitações](#limitações)
+- [Observabilidade e Tratamento de Erros](#observabilidade-e-tratamento-de-erros)
+- [Limitações Conhecidas](#limitaes-conhecidas)
 
 ## Funcionalidades
 
-- Cadastro de usuário associado à identidade autenticada.
-- Consulta de produtos e categorias.
-- Busca e filtros no catálogo, conforme os parâmetros disponibilizados pela API.
-- Carrinho associado ao usuário autenticado.
-- Inclusão, alteração de quantidade e remoção de itens.
-- Validação de disponibilidade e estoque.
-- Checkout que gera um pedido e inicia o processamento simulado do pagamento.
-- Consulta de pedidos e de seus estados.
-- Controle de acesso por autenticação e autorização.
-- Migrações versionadas do banco de dados.
-- Documentação OpenAPI/Swagger e testes automatizados, conforme configurados no projeto.
+- Registo de utilizador com criação/associação de identidade no Keycloak.
+- Consulta pública de produtos e categorias, com busca, filtros e paginação.
+- Gestão de catálogo (categorias e produtos) para utilizadores com perfil administrativo.
+- Carrinho de compras por utilizador autenticado, permitindo inclusão, alteração de quantidade e remoção de itens com validação de stock.
+- Checkout que cria um pedido e inicia o processamento de pagamento de forma simulada.
+- Processamento assíncrono de pagamento e atualização de stock após aprovação.
+- Histórico e detalhe de pedidos limitados ao utilizador proprietário.
+- Migrações de base de dados versionadas com Flyway.
+- Cache em Redis para otimização de leituras do catálogo.
+- Documentação OpenAPI/Swagger, *health checks* e métricas.
 
 ## Tecnologias
 
-| Tecnologia | Responsabilidade |
-|---|---|
-| Java 21 | Linguagem da aplicação |
-| Spring Boot 3 | Framework e configuração da API |
-| Spring Web | Exposição de endpoints REST |
-| Spring Data JPA / Hibernate | Persistência relacional, se configurados no projeto |
-| PostgreSQL | Banco de dados relacional |
-| Flyway | Versionamento e aplicação de migrações |
-| Keycloak | Provedor de identidade e emissão de tokens |
-| Spring Security / OAuth2 Resource Server | Validação do token e proteção dos endpoints |
-| RabbitMQ | Mensageria para processamento assíncrono, se habilitado na configuração |
-| Docker Compose | Inicialização coordenada dos serviços |
-| OpenAPI / Swagger UI | Exploração e teste manual dos endpoints |
-| JUnit / Mockito | Testes automatizados, conforme dependências presentes |
-
-Confirme as versões e dependências efetivamente declaradas no `pom.xml`.
+| **Tecnologia**                       | **Responsabilidade**                                           |
+| ------------------------------------ | -------------------------------------------------------------- |
+| **Java 21**                          | Linguagem principal da aplicação                               |
+| **Spring Boot 3.5.16**               | Framework base e configuração da API                           |
+| **Spring Data JPA / Hibernate**      | Persistência relacional e ORM                                  |
+| **PostgreSQL 16**                    | Base de dados relacional transacional                          |
+| **Redis**                            | Cache de leitura para o catálogo                               |
+| **RabbitMQ**                         | Mensageria para processamento assíncrono de pagamentos         |
+| **Flyway**                           | Versionamento e aplicação de migrações na base de dados        |
+| **Keycloak**                         | Provedor de identidade, login e emissão de tokens JWT          |
+| **Spring Security / OAuth2**         | Validação de tokens e proteção dos endpoints (Resource Server) |
+| **Docker & Compose**                 | Contentorização e orquestração local dos serviços              |
+| **OpenAPI / Swagger UI**             | Exploração e teste manual dos endpoints                        |
+| **JUnit / Mockito / Testcontainers** | Testes automatizados de unidade e integração                   |
 
 ## Arquitetura
 
-A solução é organizada como uma API Spring Boot, com responsabilidades separadas entre a camada HTTP, regras de negócio e persistência. A estrutura exata dos pacotes deve ser consultada no código.
+A aplicação segue uma arquitetura de monólito modular, organizada por domínios de negócio. Essa abordagem mantém a implantação simples para o escopo do desafio, sem misturar as responsabilidades de cada domínio.
 
-```text
+Plaintext
+
+```
 Cliente / Frontend
        |
        | HTTP + Bearer Token
        v
-Spring Boot REST API <------> Keycloak
+Spring Boot REST API
+  |-- Spring Security (Validação JWT e Autorização)
+  |-- user: registo e perfil
+  |-- product / category: catálogo
+  |-- cart: carrinho
+  |-- order: checkout e pedidos
+  |-- payment: processamento assíncrono
        |
-       v
-Serviços de aplicação / regras de negócio
-       |
-       +--------------------> PostgreSQL
-       |                        ^
-       |                        |
-       +--> RabbitMQ --> Processador de pagamento simulado
-                                |
-                                +--> Atualização do pedido/pagamento
-                                +--> Atualização do estoque conforme resultado
+       +------ PostgreSQL 16 (Dados transacionais)
+       +------ Redis         (Cache do catálogo)
+       +------ RabbitMQ      (Eventos de pagamento e stock)
+       +------ Keycloak      (Identidade e tokens)
+
 ```
 
-O diagrama representa o fluxo conceitual esperado. Ajuste-o caso a implementação atual utilize outro mecanismo de processamento ou tenha responsabilidades diferentes.
+### Organização dos Pacotes
 
-### Diagramas
+| **Pacote**    | **Responsabilidade**                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| `config/`     | Configurações de segurança, cache, RabbitMQ, Keycloak, JPA e OpenAPI. |
+| `common/`     | Entidade base, métricas e logging de requisições.                     |
+| `exceptions/` | Exceções de negócio e tratamento global de erros.                     |
+| `user/`       | Registo e perfil de utilizador.                                       |
+| `category/`   | Consulta e administração de categorias.                               |
+| `product/`    | Catálogo, filtros e acesso ao cache.                                  |
+| `cart/`       | Gestão de carrinhos e itens.                                          |
+| `order/`      | Checkout, criação de pedidos e finalização.                           |
+| `payment/`    | Pagamento simulado, publicação/consumo de eventos e reconciliação.    |
 
-#### Arquitetura e fluxo da aplicação
+*(Consulte a pasta `docs/` no repositório para diagramas detalhados de modelagem de dados e arquitetura, caso existam).*
 
-![Arquitetura e fluxo da aplicação](backend-readme-com-diagramas/docs/diagrama-arquitetura-fluxo.png)
+## Decisões Técnicas
 
-#### Modelo de dados
+### PostgreSQL 16
 
-![Diagrama de modelagem de dados](backend-readme-com-diagramas/docs/diagrama-modelagem-dados.png)
+Escolhido por oferecer persistência relacional robusta. O domínio possui relações claras (utilizadores, produtos, pedidos, etc.). Transações, chaves estrangeiras e *locks* pessimistas ajudam a preservar invariantes de negócio durante o checkout e a baixa de stock. Valores monetários são persistidos com precisão decimal.
 
-## Decisões técnicas
+### Keycloak + JWT
 
-### PostgreSQL
+Atua centralizando a identidade e a emissão dos tokens. A API funciona como um *OAuth2 Resource Server*, validando a assinatura e a expiração do JWT, além de converter as *roles* do *realm* em autoridades do Spring Security. Senhas não são armazenadas pela aplicação de negócio.
 
-O PostgreSQL foi escolhido por oferecer persistência relacional, transações, integridade referencial e restrições adequadas para entidades relacionadas, como usuários, produtos, carrinhos, pedidos e pagamentos. Essas propriedades ajudam a manter consistência em operações de negócio que alteram múltiplos registros.
+### RabbitMQ (Mensageria e Pagamento Simulado)
 
-### Keycloak
+O RabbitMQ desacopla o checkout do processamento do pagamento. O checkout regista o pedido e o pagamento como pendentes, e o processamento ocorre via consumidores assíncronos.
 
-O Keycloak centraliza a identidade dos usuários e a emissão dos tokens. A API atua como resource server, validando os tokens recebidos e aplicando as regras de autorização. Senhas não devem ser armazenadas pela aplicação de negócio.
+*Nota sobre a simulação:* O gateway é fictício. A regra configurada recusa valores acima de `1000.00`; valores abaixo ou iguais são aprovados. Um *job* de reconciliação republica eventos associados a pagamentos que ficaram pendentes por tempo excessivo. Há também uma *dead-letter queue* para falhas repetidas.
 
-No ambiente discutido durante o desenvolvimento, foram considerados o realm `supermercado`, o client `supermercado-api` e as roles `ADMIN` e `CUSTOMER`. Confirme os nomes e a configuração exportada antes da entrega.
+### Redis
 
-### Flyway
+Reduz consultas repetidas ao PostgreSQL para listagem e detalhes do catálogo. O TTL padrão é de 60 segundos. A estratégia é *fail-open*: em caso de falha no Redis, a API tenta consultar diretamente a base de dados.
 
-As migrações versionadas permitem reconstruir a estrutura do banco de forma rastreável e reproduzível. Alterações no schema devem ser feitas por novas migrações, evitando depender de mudanças manuais no banco.
+### Flyway, DTOs e Validação
 
-### RabbitMQ e pagamento simulado
-
-A mensageria desacopla a criação do pedido do processamento do pagamento. O checkout pode registrar o pedido inicialmente como pendente e publicar uma mensagem para processamento posterior. O resultado pode atualizar o estado do pagamento e do pedido.
-
-O estado final não deve ser presumido pelo frontend imediatamente após o checkout: ele precisa ser consultado na API conforme o mecanismo implementado. Confirme no código as transições de estado, a política de aprovação/recusa e o comportamento em caso de falha ou falta de estoque.
+Mudanças de *schema* são versionadas (`V1__init.sql`, `V2__seed.sql`). DTOs e *Bean Validation* separam o contrato HTTP das entidades persistidas, garantindo a integridade dos dados de entrada.
 
 ## Pré-requisitos
 
 - Git.
 - Docker e Docker Compose.
-- JDK 21, caso execute a aplicação fora de um container.
-- Maven ou Maven Wrapper (`./mvnw`), conforme presente no repositório.
-- Acesso ao repositório e às configurações de ambiente necessárias.
+- JDK 21 e Maven Wrapper (`./mvnw`), caso deseje compilar ou executar fora do Docker.
+- Portas locais disponíveis (`8080` para a API, `7080` para o Keycloak, `5432` para o Postgres, etc., conforme `docker-compose.yaml`).
 
-## Execução local com Docker
+## Execução Passo a Passo
 
-Na raiz que contém o arquivo `docker-compose.yml`:
+1. **Obter o projeto:**
 
-```bash
-docker compose config
-docker compose up -d --build
-docker compose ps
-docker compose logs -f
+   Bash
+   ```
+   git clone https://github.com/eusamir/supermercado-voce-no-coracao-da-gente.git
+   cd supermercado-voce-no-coracao-da-gente
+
+   ```
+2. **Validar a configuração do Compose:**
+
+   Bash
+   ```
+   docker compose config
+
+   ```
+3. **Subir a infraestrutura e a API:**
+
+   Bash
+   ```
+   docker compose up -d --build
+
+   ```
+4. **Acompanhar os logs:**
+
+   A primeira inicialização pode demorar enquanto as imagens são descarregadas e as *migrations* aplicadas.
+
+   Bash
+   ```
+   docker compose logs -f
+   # Ou para um serviço específico:
+   docker compose logs -f api
+
+   ```
+5. **Verificar o estado dos serviços:**
+
+   Bash
+   ```
+   docker compose ps
+
+   ```
+6. **Encerrar os serviços:**
+
+   Bash
+   ```
+   docker compose down
+   # Utilize a flag -v apenas se desejar apagar os volumes de dados persistidos:
+   # docker compose down -v
+
+   ```
+
+## Autenticação e Configuração
+
+Para aceder a *endpoints* protegidos, é necessário enviar um token JWT válido no cabeçalho:
+
+HTTP
+
 ```
-
-O primeiro comando valida a configuração resolvida do Compose; o segundo inicia os serviços definidos no arquivo; os seguintes ajudam a verificar estado e logs.
-
-Para acompanhar apenas um serviço, use o nome real declarado no Compose:
-
-```bash
-docker compose logs -f <nome-do-servico>
-```
-
-Antes de executar, confira no `docker-compose.yml` quais serviços são iniciados, as portas publicadas e as variáveis obrigatórias. Não assuma que todos os serviços ficam saudáveis apenas porque os containers estão em execução.
-
-Para encerrar sem remover os dados persistidos:
-
-```bash
-docker compose down
-```
-
-> Evite `docker compose down -v` em ambientes com dados que precisam ser preservados: essa opção remove volumes.
-
-### Verificação pós-inicialização
-
-1. Execute `docker compose ps` e confira o estado dos serviços.
-2. Consulte os logs do backend, banco, Keycloak e broker.
-3. Verifique o health endpoint, se Actuator estiver habilitado.
-4. Abra o Swagger pela URL configurada no projeto.
-5. Faça uma requisição pública ao catálogo.
-6. Faça uma requisição protegida com um token válido.
-7. Execute o fluxo de carrinho e checkout e confira os logs do processamento assíncrono.
-
-As URLs e portas exatas devem ser obtidas do Compose e dos arquivos de configuração da aplicação.
-
-## Configuração e autenticação
-
-Configure as variáveis de ambiente necessárias conforme `application.yml`, `application-*.yml` e `docker-compose.yml`. Não versione senhas reais, client secrets ou tokens.
-
-Verifique especialmente:
-
-- URL JDBC, usuário e senha do PostgreSQL.
-- Endereço do RabbitMQ, credenciais e nomes de exchange/queue, se aplicáveis.
-- URL/issuer do realm Keycloak.
-- Client e roles esperadas pela API.
-- Portas publicadas para acesso a partir da máquina host.
-- URLs internas usadas na comunicação entre containers.
-
-### Acesso protegido
-
-Para endpoints protegidos, obtenha um access token por meio do fluxo de autenticação configurado no Keycloak e envie-o no cabeçalho:
-
-```http
 Authorization: Bearer <access_token>
+
 ```
 
-Não inclua tokens reais neste README. A rota de token, o client, o grant type e as credenciais de teste dependem da configuração efetivamente versionada no projeto.
+### Obter token de teste via Keycloak (Local)
 
-## Fluxos de negócio
+Os comandos abaixo extraem um token utilizando o *realm* `supermercado` e os utilizadores de demonstração configurados (`admin` e `cliente`). *Nota: Requer o Python3 instalado para o parse do JSON ou ferramentas como o `jq`.*
 
-### 1. Cadastro
+**Token de Administrador:**
 
-1. O cliente envia os dados exigidos pelo endpoint de cadastro.
-2. A aplicação valida os campos recebidos.
-3. A identidade é criada ou associada ao provedor de autenticação, conforme a implementação.
-4. A API retorna o resultado do cadastro.
+Bash
 
-Confirme quais campos são obrigatórios e se a criação de identidade no Keycloak é realizada pela API ou por outro fluxo.
+```
+export KC_TOKEN_URL="http://localhost:7080/realms/supermercado/protocol/openid-connect/token"
 
-### 2. Catálogo
+export ADMIN_TOKEN=$(curl -sS -X POST "$KC_TOKEN_URL" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=supermercado-frontend" \
+  -d "username=admin" \
+  -d "password=123456" | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
 
-1. O frontend consulta a listagem pública de produtos.
-2. A API aplica paginação, busca e filtros suportados.
-3. A resposta fornece os dados necessários para exibição, incluindo preço, categoria e disponibilidade.
-
-Consulte a documentação OpenAPI para os nomes exatos dos parâmetros e o formato da paginação.
-
-### 3. Carrinho
-
-1. O usuário autenticado consulta seu carrinho.
-2. Adiciona um produto e uma quantidade.
-3. A API valida produto, quantidade e estoque disponível.
-4. O usuário pode alterar a quantidade ou remover o item.
-5. O total é calculado pela regra do backend, não confiando em valores enviados pelo frontend.
-
-### 4. Checkout e pagamento
-
-1. O usuário autenticado solicita o checkout do carrinho.
-2. A API valida o carrinho e cria um pedido com seus itens e valores registrados.
-3. O pagamento é iniciado em estado pendente.
-4. O processamento assíncrono simulado determina o resultado.
-5. O pedido e o pagamento são atualizados conforme o resultado.
-6. Em caso de aprovação, o estoque deve ser atualizado de acordo com as regras implementadas.
-7. O frontend consulta o pedido para apresentar seu estado atual.
-
-A simulação não representa cobrança financeira real. Verifique no código o tratamento de recusa, estoque insuficiente, repetição de mensagens e falhas de processamento.
-
-### 5. Consulta de pedidos
-
-O usuário autenticado consulta o próprio histórico e os detalhes de um pedido. A autorização deve impedir que um cliente acesse pedidos de outra pessoa, mesmo que conheça o identificador.
-
-## API e documentação
-
-Quando a aplicação estiver em execução, use a URL do Swagger/OpenAPI configurada no projeto para consultar as rotas, schemas, parâmetros, respostas e requisitos de autenticação.
-
-A lista abaixo é uma referência funcional; confirme os caminhos e contratos no código e no Swagger antes de usá-la como documentação definitiva.
-
-| Funcionalidade | Rotas de referência a confirmar |
-|---|---|
-| Cadastro | `POST /api/users` |
-| Usuário atual | `GET /api/users/me` |
-| Catálogo | `GET /api/products` |
-| Detalhe de produto | `GET /api/products/{id}` |
-| Categorias | `GET /api/categories` |
-| Consultar carrinho | `GET /api/cart` |
-| Adicionar item | `POST /api/cart/items` |
-| Alterar quantidade | `PUT /api/cart/items/{productId}` |
-| Remover item | `DELETE /api/cart/items/{productId}` |
-| Checkout | `POST /api/orders/checkout` |
-| Histórico de pedidos | `GET /api/orders` |
-| Detalhe do pedido | `GET /api/orders/{id}` |
-
-As rotas administrativas, caso existam, devem ser documentadas separadamente e protegidas pela role apropriada. Não presuma que rotas protegidas sejam públicas.
-
-### Exemplo de chamada HTTP
-
-Exemplo ilustrativo para uma rota de listagem; ajuste a URL e os parâmetros de acordo com o ambiente:
-
-```bash
-curl -i "http://localhost:8080/api/products"
 ```
 
-Exemplo ilustrativo de chamada protegida:
+**Token de Cliente:**
 
-```bash
-curl -i "http://localhost:8080/api/cart" \
-  -H "Authorization: Bearer <access_token>"
+Bash
+
+```
+export CUSTOMER_TOKEN=$(curl -sS -X POST "$KC_TOKEN_URL" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=supermercado-frontend" \
+  -d "username=cliente" \
+  -d "password=123456" | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+
 ```
 
-Os exemplos acima só funcionarão se a aplicação estiver publicada na porta indicada e as rotas coincidirem com a configuração real.
+### Controlo de Acesso
+
+| **Recurso / Rota**                                      | **Nível de Acesso**                   |
+| ------------------------------------------------------- | ------------------------------------- |
+| `POST /api/users`                                       | Público                               |
+| `GET /api/products` e `GET /api/products/{id}`          | Público                               |
+| `GET /api/categories`                                   | Utilizador autenticado                |
+| Carrinho, Perfil e Pedidos (`/api/cart`, `/api/orders`) | Utilizador autenticado (proprietário) |
+| `/api/admin/**` e gestão de catálogo                    | Role `ADMIN`                          |
+| Swagger, OpenAPI e `/actuator/health`                   | Público                               |
+
+## Fluxos de Negócio
+
+1. **Catálogo e Busca:** O frontend consulta a listagem pública de produtos, aplicando filtros e paginação. As respostas são fornecidas rapidamente via Redis.
+2. **Carrinho de Compras:** O utilizador autenticado consulta o seu carrinho. A API calcula os totais baseada nas regras de backend e valida o stock sempre que uma quantidade é alterada.
+3. **Checkout:** Ao submeter o carrinho, o pedido é criado como `PENDING`. O pagamento simulado é encaminhado para o RabbitMQ.
+4. **Pagamento e Stock:** O processamento assíncrono dita o resultado. Se o pagamento for inferior a `1000.00`, é aprovado e as baixas de stock são aplicadas de forma atómica.
+5. **Consulta de Pedido:** Como a aprovação não é síncrona, o frontend deve consultar o detalhe do pedido para apresentar o estado final ao utilizador.
+
+## Diagramas e Fluxos de Negócio
+
+Os fluxos abaixo resumem o comportamento descrito para a API. Se o repositório já contiver imagens desses diagramas, substitua ou complemente os blocos Mermaid com os caminhos relativos reais dos arquivos. No Markdown, a referência deve seguir o formato `![Descrição](caminho/relativo/da-imagem.png)`.
+
+### Arquitetura da aplicação
+
+```mermaid
+flowchart TD
+    A[Cliente / Frontend] -->|HTTP + Bearer Token| B[Spring Boot REST API]
+    B --> C[Spring Security / Validação JWT]
+    B --> D[Domínios: User, Product, Category, Cart, Order e Payment]
+    D --> E[(PostgreSQL)]
+    D --> F[(Redis - cache do catálogo)]
+    D --> G[RabbitMQ - eventos assíncronos]
+    C <--> H[Keycloak]
+```
+
+### Fluxo de checkout e pagamento
+
+```mermaid
+sequenceDiagram
+    actor Cliente
+    participant API as Spring Boot API
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+    participant Worker as Consumidor de pagamento
+
+    Cliente->>API: POST /api/orders/checkout
+    API->>DB: Registra pedido e pagamento como PENDING
+    API->>MQ: Publica evento de pagamento
+    API-->>Cliente: Retorna pedido pendente
+    MQ->>Worker: Entrega evento
+    Worker->>Worker: Simula processamento do pagamento
+    alt Valor até 1000.00
+        Worker->>DB: Aprova pagamento e atualiza stock atomicamente
+    else Valor acima de 1000.00
+        Worker->>DB: Regista pagamento recusado
+    end
+    Cliente->>API: Consulta detalhe do pedido
+    API->>DB: Lê estado atualizado
+    API-->>Cliente: Retorna estado do pedido
+```
+
+### Fluxo de consulta do catálogo
+
+```mermaid
+flowchart TD
+    A[Cliente consulta catálogo] --> B{Cache Redis disponível e contém dados?}
+    B -- Sim --> C[Retorna dados do cache]
+    B -- Não --> D[Consulta PostgreSQL]
+    D --> E[Atualiza cache Redis]
+    E --> F[Retorna produtos]
+    B -- Redis indisponível --> D
+```
+
+### Referenciar imagens já existentes no repositório
+
+Para usar os arquivos de imagem existentes, localize-os no projeto e adicione as referências relativas correspondentes. Exemplos de sintaxe (os nomes abaixo são ilustrativos e não afirmam que esses arquivos existam):
+
+```markdown
+![Arquitetura da aplicação](docs/images/arquitetura.png)
+![Fluxo de checkout e pagamento](docs/images/fluxo-checkout-pagamento.png)
+![Fluxo de consulta do catálogo](docs/images/fluxo-catalogo.png)
+```
+
+## Exemplos de Uso da API
+
+Defina a variável com a base da API:
+
+Bash
+
+```
+export API="http://localhost:8080"
+
+```
+
+**Consultar Catálogo (Público):**
+
+Bash
+
+```
+curl -i "$API/api/products?search=banana&page=0&size=5"
+
+```
+
+**Consultar o Perfil Autenticado:**
+
+Bash
+
+```
+curl -i "$API/api/users/me" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN"
+
+```
+
+**Adicionar item ao Carrinho:**
+
+Bash
+
+```
+curl -i -X POST "$API/api/cart/items" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productId": "<UUID-DO-PRODUTO>",
+    "quantity": 2
+  }'
+
+```
+
+**Realizar Checkout:**
+
+Bash
+
+```
+curl -i -X POST "$API/api/orders/checkout" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN"
+
+```
+
+**Operação Administrativa (Ex: Listar produtos na visão admin):**
+
+Bash
+
+```
+curl -i "$API/api/admin/products" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+```
+
+*Para visualizar a documentação completa dos contratos e schemas, aceda ao Swagger UI localmente em `http://localhost:8080/swagger-ui/index.html`.*
 
 ## Testes
 
-Execute os testes com o Maven Wrapper, caso exista:
+Para executar a suite de testes unitários e de integração (que utilizam Testcontainers para levantar dependências temporárias como Postgres e RabbitMQ), execute:
 
-```bash
+Bash
+
+```
 ./mvnw test
+
 ```
 
-Para compilar e empacotar:
+Para compilar, validar testes e gerar o pacote final:
 
-```bash
+Bash
+
+```
 ./mvnw clean package
+
 ```
 
-No Windows, utilize `mvnw.cmd` quando necessário. Se o projeto não possuir Maven Wrapper, use o Maven instalado.
+## Observabilidade e Tratamento de Erros
 
-Para que a validação seja reproduzível:
+- **Códigos HTTP Padronizados:**
+    - `200 OK` e `201 Created` para sucessos.
+    - `400 Bad Request` para erros de validação de *payload*.
+    - `401 Unauthorized` / `403 Forbidden` tratados via Spring Security.
+    - `404 Not Found` para recursos inexistentes ou acessos não autorizados a recursos de terceiros.
+    - `409 Conflict` em caso de falta de stock ou estado inválido.
+- **Problem Details:** Erros de negócio são convertidos no padrão RFC 9457 (`ProblemDetail`).
+- **Métricas:** O `RequestLoggingFilter` gera e propaga um `X-Request-Id`. O *Spring Boot Actuator* disponibiliza *health checks* e o *Micrometer/Prometheus* expõe métricas de performance da aplicação.
 
-- Confira se os testes unitários passam.
-- Execute os testes de integração que dependem de banco ou outros serviços.
-- Confirme se o ambiente Docker exigido pelos testes está disponível.
-- Teste autorização, validações, estoque e cenários de pagamento.
-- Registre os resultados reais; não declare testes como aprovados sem executá-los.
+## Limitações Conhecidas
 
-## Tratamento de erros
-
-A API deve responder com códigos HTTP adequados, por exemplo:
-
-- `400 Bad Request`: dados inválidos ou requisição malformada.
-- `401 Unauthorized`: token ausente ou inválido em rota protegida.
-- `403 Forbidden`: usuário autenticado sem permissão.
-- `404 Not Found`: recurso inexistente ou não acessível.
-- `409 Conflict`: conflito de estado ou regra de negócio, quando adotado pela aplicação.
-- `500 Internal Server Error`: falha inesperada.
-
-O formato exato do corpo de erro deve ser conferido no handler global e nos DTOs de resposta da aplicação.
-
-## Limitações
-
-- O pagamento é simulado; não há cobrança financeira real.
-- A interface não deve assumir aprovação imediata, pois o processamento pode ser assíncrono.
-- Endereço de entrega, frete e método de pagamento selecionável não fazem parte do escopo definido para o checkout.
-- Funcionalidades não implementadas devem ser identificadas como pendências, e não descritas como concluídas.
+- O fluxo de pagamento é inteiramente simulado; não existe integração real com adquirentes financeiras.
+- Funcionalidades como seleção de endereço de entrega, cálculo de portes (frete) e escolha de método de pagamento foram deixadas fora do escopo do desafio.
+- A política de CORS atual está orientada para permitir tráfego de `http://localhost:4200` (Angular/Frontend padrão).
+- As credenciais de demonstração inseridas no ficheiro de configuração do Keycloak não têm segurança adequada e **nunca** devem ser transportadas para ambientes produtivos.
