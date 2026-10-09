@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -64,6 +65,9 @@ class ProductCatalogCacheIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private RabbitListenerEndpointRegistry listenerRegistry;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -302,8 +306,15 @@ class ProductCatalogCacheIntegrationTest {
         User secondUser = userRepository.saveAndFlush(user());
         cartService.addItem(firstUser, product.getId(), 4);
         cartService.addItem(secondUser, product.getId(), 4);
-        UUID firstOrder = orderService.checkout(firstUser).order().getId();
-        UUID secondOrder = orderService.checkout(secondUser).order().getId();
+        UUID firstOrder;
+        UUID secondOrder;
+        listenerRegistry.stop();
+        try {
+            firstOrder = orderService.checkout(firstUser).order().getId();
+            secondOrder = orderService.checkout(secondUser).order().getId();
+        } finally {
+            listenerRegistry.start();
+        }
 
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             OrderStatus first = orderRepository.findById(firstOrder).orElseThrow().getStatus();

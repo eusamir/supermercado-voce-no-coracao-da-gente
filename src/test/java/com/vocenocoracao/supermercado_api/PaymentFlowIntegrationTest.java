@@ -29,6 +29,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -73,6 +74,9 @@ class PaymentFlowIntegrationTest {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private RabbitListenerEndpointRegistry listenerRegistry;
 
     private User newUser() {
         User user = new User();
@@ -146,8 +150,15 @@ class PaymentFlowIntegrationTest {
         int original = stockOf("cenoura (kg)");
 
         try {
-            UUID firstOrder = checkout("cenoura (kg)", 2);
-            UUID secondOrder = checkout("cenoura (kg)", 2);
+            UUID firstOrder;
+            UUID secondOrder;
+            listenerRegistry.stop();
+            try {
+                firstOrder = checkout("cenoura (kg)", 2);
+                secondOrder = checkout("cenoura (kg)", 2);
+            } finally {
+                listenerRegistry.start();
+            }
 
             await().atMost(TIMEOUT).untilAsserted(() -> {
                 List<OrderStatus> statuses = List.of(orderStatus(firstOrder), orderStatus(secondOrder));
