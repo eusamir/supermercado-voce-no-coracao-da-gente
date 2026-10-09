@@ -81,11 +81,11 @@ O diagrama representa o fluxo conceitual esperado. Ajuste-o caso a implementaç�
 
 #### Arquitetura e fluxo da aplicação
 
-![Arquitetura e fluxo da aplicação](docs/diagrama-arquitetura-fluxo.png)
+![Arquitetura e fluxo da aplicação](backend-readme-com-diagramas/docs/diagrama-arquitetura-fluxo.png)
 
 #### Modelo de dados
 
-![Diagrama de modelagem de dados](docs/diagrama-modelagem-dados.png)
+![Diagrama de modelagem de dados](backend-readme-com-diagramas/docs/diagrama-modelagem-dados.png)
 
 ## Decisões técnicas
 
